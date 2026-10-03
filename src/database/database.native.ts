@@ -1,8 +1,11 @@
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
 export interface IDatabase {
   execAsync(sql: string): Promise<void>;
-  runAsync(sql: string, ...params: any[]): Promise<{ lastInsertRowId: number; changes: number }>;
+  runAsync(
+    sql: string,
+    ...params: any[]
+  ): Promise<{ lastInsertRowId: number; changes: number }>;
   getFirstAsync<T>(sql: string, ...params: any[]): Promise<T | null>;
   getAllAsync<T>(sql: string, ...params: any[]): Promise<T[]>;
 }
@@ -14,7 +17,7 @@ export async function getDatabase(): Promise<IDatabase> {
     return dbInstance;
   }
 
-  const db = await SQLite.openDatabaseAsync('nutrition_tracker.db');
+  const db = await SQLite.openDatabaseAsync("nutrition_tracker.db");
   await initDatabase(db);
   dbInstance = db;
   return db;
@@ -50,6 +53,23 @@ async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       key TEXT UNIQUE NOT NULL,
       value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS health_profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      age INTEGER,
+      height_cm REAL,
+      weight_kg REAL,
+      sex_parameter TEXT,
+      activity_level TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS health_measurements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recorded_at TEXT NOT NULL,
+      weight_kg REAL NOT NULL,
+      height_cm REAL
     );
 
     -- Seed initial targets if none exist

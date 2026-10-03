@@ -1,5 +1,5 @@
-import { getDatabase } from './database';
-import { DailyTargets } from '../types/food';
+import { DailyTargets } from "../types/food";
+import { getDatabase } from "./database";
 
 const DEFAULT_TARGETS: DailyTargets = {
   id: 1,
@@ -11,21 +11,25 @@ const DEFAULT_TARGETS: DailyTargets = {
 
 export async function getTargets(): Promise<DailyTargets> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<DailyTargets>('SELECT * FROM daily_targets WHERE id = 1;');
+  const row = await db.getFirstAsync<DailyTargets>(
+    "SELECT * FROM daily_targets WHERE id = 1;",
+  );
   if (!row) {
     await db.runAsync(
-      'INSERT OR IGNORE INTO daily_targets (id, calorie_target, protein_target, carbs_target, fat_target) VALUES (1, ?, ?, ?, ?);',
+      "INSERT OR IGNORE INTO daily_targets (id, calorie_target, protein_target, carbs_target, fat_target) VALUES (1, ?, ?, ?, ?);",
       DEFAULT_TARGETS.calorie_target,
       DEFAULT_TARGETS.protein_target,
       DEFAULT_TARGETS.carbs_target,
-      DEFAULT_TARGETS.fat_target
+      DEFAULT_TARGETS.fat_target,
     );
     return DEFAULT_TARGETS;
   }
   return row;
 }
 
-export async function updateTargets(targets: Partial<Omit<DailyTargets, 'id'>>): Promise<DailyTargets> {
+export async function updateTargets(
+  targets: Partial<Omit<DailyTargets, "id">>,
+): Promise<DailyTargets> {
   const db = await getDatabase();
   const current = await getTargets();
 
@@ -41,7 +45,7 @@ export async function updateTargets(targets: Partial<Omit<DailyTargets, 'id'>>):
     newCalorieTarget,
     newProteinTarget,
     newCarbsTarget,
-    newFatTarget
+    newFatTarget,
   );
 
   return {
@@ -53,9 +57,15 @@ export async function updateTargets(targets: Partial<Omit<DailyTargets, 'id'>>):
   };
 }
 
-export async function getSetting(key: string, defaultValue = ''): Promise<string> {
+export async function getSetting(
+  key: string,
+  defaultValue = "",
+): Promise<string> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', key);
+  const row = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = ?;",
+    key,
+  );
   return row ? row.value : defaultValue;
 }
 
@@ -65,7 +75,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
     `INSERT INTO settings (key, value) VALUES (?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value;`,
     key,
-    value
+    value,
   );
 }
 
@@ -73,6 +83,8 @@ export async function clearAllData(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
     DELETE FROM foods;
+    DELETE FROM health_profile;
+    DELETE FROM health_measurements;
     UPDATE daily_targets SET calorie_target = 2000, protein_target = 120, carbs_target = 220, fat_target = 65 WHERE id = 1;
     UPDATE settings SET value = 'User' WHERE key = 'user_name';
     UPDATE settings SET value = 'metric' WHERE key = 'units';
@@ -81,20 +93,30 @@ export async function clearAllData(): Promise<void> {
 
 export async function exportAllData(): Promise<string> {
   const db = await getDatabase();
-  const foods = await db.getAllAsync('SELECT * FROM foods ORDER BY created_at ASC;');
+  const foods = await db.getAllAsync(
+    "SELECT * FROM foods ORDER BY created_at ASC;",
+  );
   const targets = await getTargets();
-  const settings = await db.getAllAsync('SELECT * FROM settings;');
+  const settings = await db.getAllAsync("SELECT * FROM settings;");
+  const healthProfile = await db.getFirstAsync(
+    "SELECT * FROM health_profile WHERE id = 1;",
+  );
+  const healthMeasurements = await db.getAllAsync(
+    "SELECT * FROM health_measurements ORDER BY recorded_at ASC, id ASC;",
+  );
 
   return JSON.stringify(
     {
-      app: 'AI Nutrition Tracker',
-      version: '1.0.0',
+      app: "AI Nutrition Tracker",
+      version: "1.0.0",
       exportedAt: new Date().toISOString(),
       dailyTargets: targets,
       settings,
+      healthProfile,
+      healthMeasurements,
       foods,
     },
     null,
-    2
+    2,
   );
 }

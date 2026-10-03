@@ -1,32 +1,44 @@
-import React, { useCallback, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   Alert,
-  TextInput,
   Modal,
-  Share,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
-import { getTargets, getSetting, setSetting, clearAllData, exportAllData } from '../../database/settingsRepository';
-import { DailyTargets } from '../../types/food';
-import { ConfirmationDialog } from '../../components/ConfirmationDialog';
-import { PrimaryButton } from '../../components/PrimaryButton';
-import { SecondaryButton } from '../../components/SecondaryButton';
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmationDialog } from "../../components/ConfirmationDialog";
+import { PrimaryButton } from "../../components/PrimaryButton";
+import { SecondaryButton } from "../../components/SecondaryButton";
+import {
+  Colors,
+  Radii,
+  Shadows,
+  Spacing,
+  Typography,
+} from "../../constants/theme";
+import {
+  clearAllData,
+  exportAllData,
+  getSetting,
+  getTargets,
+  setSetting,
+} from "../../database/settingsRepository";
+import { DailyTargets } from "../../types/food";
 
 export default function ProfileScreen() {
-  const [userName, setUserName] = useState('User');
+  const [userName, setUserName] = useState("User");
   const [targets, setTargets] = useState<DailyTargets | null>(null);
-  const [units, setUnits] = useState('metric');
+  const [units, setUnits] = useState("metric");
   const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState('');
+  const [tempName, setTempName] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [exportedJson, setExportedJson] = useState<string | null>(null);
 
@@ -34,33 +46,33 @@ export default function ProfileScreen() {
     try {
       const [currentTargets, name, unitSetting] = await Promise.all([
         getTargets(),
-        getSetting('user_name', 'User'),
-        getSetting('units', 'metric'),
+        getSetting("user_name", "User"),
+        getSetting("units", "metric"),
       ]);
       setTargets(currentTargets);
-      setUserName(name || 'User');
-      setUnits(unitSetting || 'metric');
+      setUserName(name || "User");
+      setUnits(unitSetting || "metric");
     } catch (err) {
-      console.warn('Failed to load profile data:', err);
+      console.warn("Failed to load profile data:", err);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadProfile();
-    }, [loadProfile])
+    }, [loadProfile]),
   );
 
   const handleSaveName = async () => {
     if (!tempName.trim()) return;
-    await setSetting('user_name', tempName.trim());
+    await setSetting("user_name", tempName.trim());
     setUserName(tempName.trim());
     setIsEditingName(false);
   };
 
-  const handleToggleUnits = async (selectedUnit: 'metric' | 'imperial') => {
+  const handleToggleUnits = async (selectedUnit: "metric" | "imperial") => {
     setUnits(selectedUnit);
-    await setSetting('units', selectedUnit);
+    await setSetting("units", selectedUnit);
   };
 
   const handleClearAllData = async () => {
@@ -68,9 +80,12 @@ export default function ProfileScreen() {
     try {
       await clearAllData();
       await loadProfile();
-      Alert.alert('Data Cleared', 'All food records and settings have been reset.');
+      Alert.alert(
+        "Data Cleared",
+        "Food records, health information, and settings have been reset.",
+      );
     } catch {
-      Alert.alert('Error', 'Failed to clear data.');
+      Alert.alert("Error", "Failed to clear data.");
     }
   };
 
@@ -81,20 +96,23 @@ export default function ProfileScreen() {
 
       try {
         await Share.share({
-          title: 'Nutrition Tracker Data Backup',
+          title: "Nutrition Tracker Data Backup",
           message: data,
         });
       } catch {
         // Fallback: the modal will display the exported JSON
       }
     } catch {
-      Alert.alert('Export Failed', 'Could not export database records.');
+      Alert.alert("Export Failed", "Could not export database records.");
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Profile & Settings</Text>
@@ -104,7 +122,7 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarInitials}>
-              {userName.charAt(0).toUpperCase() || 'U'}
+              {userName.charAt(0).toUpperCase() || "U"}
             </Text>
           </View>
           <View style={styles.profileInfo}>
@@ -115,12 +133,21 @@ export default function ProfileScreen() {
                   setTempName(userName);
                   setIsEditingName(true);
                 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="pencil-outline" size={16} color={Colors.light.primary} />
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name="pencil-outline"
+                  size={16}
+                  color={Colors.light.primary}
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.badgeRow}>
-              <Ionicons name="shield-checkmark" size={14} color={Colors.light.primary} />
+              <Ionicons
+                name="shield-checkmark"
+                size={14}
+                color={Colors.light.primary}
+              />
               <Text style={styles.badgeText}>Local On-Device Storage</Text>
             </View>
           </View>
@@ -130,7 +157,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Daily Nutrition Targets</Text>
-            <TouchableOpacity onPress={() => router.push('/profile/targets')}>
+            <TouchableOpacity onPress={() => router.push("/profile/targets")}>
               <Text style={styles.editActionText}>Edit Targets</Text>
             </TouchableOpacity>
           </View>
@@ -141,11 +168,16 @@ export default function ProfileScreen() {
                 <View>
                   <Text style={styles.targetLabel}>Calorie Target</Text>
                   <Text style={styles.targetValue}>
-                    {targets.calorie_target.toLocaleString()} <Text style={styles.targetUnit}>kcal</Text>
+                    {targets.calorie_target.toLocaleString()}{" "}
+                    <Text style={styles.targetUnit}>kcal</Text>
                   </Text>
                 </View>
                 <View style={styles.targetPill}>
-                  <Ionicons name="flame" size={16} color={Colors.light.calories} />
+                  <Ionicons
+                    name="flame"
+                    size={16}
+                    color={Colors.light.calories}
+                  />
                   <Text style={styles.targetPillText}>Daily Goal</Text>
                 </View>
               </View>
@@ -154,21 +186,45 @@ export default function ProfileScreen() {
 
               <View style={styles.targetMacrosRow}>
                 <View style={styles.targetMacroCol}>
-                  <Text style={[styles.targetMacroDot, { color: Colors.light.protein }]}>●</Text>
+                  <Text
+                    style={[
+                      styles.targetMacroDot,
+                      { color: Colors.light.protein },
+                    ]}
+                  >
+                    ●
+                  </Text>
                   <Text style={styles.targetMacroLabel}>Protein</Text>
-                  <Text style={styles.targetMacroAmount}>{targets.protein_target}g</Text>
+                  <Text style={styles.targetMacroAmount}>
+                    {targets.protein_target}g
+                  </Text>
                 </View>
 
                 <View style={styles.targetMacroCol}>
-                  <Text style={[styles.targetMacroDot, { color: Colors.light.carbs }]}>●</Text>
+                  <Text
+                    style={[
+                      styles.targetMacroDot,
+                      { color: Colors.light.carbs },
+                    ]}
+                  >
+                    ●
+                  </Text>
                   <Text style={styles.targetMacroLabel}>Carbs</Text>
-                  <Text style={styles.targetMacroAmount}>{targets.carbs_target}g</Text>
+                  <Text style={styles.targetMacroAmount}>
+                    {targets.carbs_target}g
+                  </Text>
                 </View>
 
                 <View style={styles.targetMacroCol}>
-                  <Text style={[styles.targetMacroDot, { color: Colors.light.fat }]}>●</Text>
+                  <Text
+                    style={[styles.targetMacroDot, { color: Colors.light.fat }]}
+                  >
+                    ●
+                  </Text>
                   <Text style={styles.targetMacroLabel}>Fat</Text>
-                  <Text style={styles.targetMacroAmount}>{targets.fat_target}g</Text>
+                  <Text style={styles.targetMacroAmount}>
+                    {targets.fat_target}g
+                  </Text>
                 </View>
               </View>
             </View>
@@ -182,35 +238,43 @@ export default function ProfileScreen() {
           <View style={styles.preferenceCard}>
             <View style={styles.preferenceRow}>
               <View style={styles.preferenceLeft}>
-                <Ionicons name="scale-outline" size={20} color={Colors.light.textPrimary} />
+                <Ionicons
+                  name="scale-outline"
+                  size={20}
+                  color={Colors.light.textPrimary}
+                />
                 <Text style={styles.preferenceLabel}>Units</Text>
               </View>
               <View style={styles.unitsToggle}>
                 <TouchableOpacity
-                  onPress={() => handleToggleUnits('metric')}
+                  onPress={() => handleToggleUnits("metric")}
                   style={[
                     styles.unitOption,
-                    units === 'metric' && styles.unitOptionSelected,
-                  ]}>
+                    units === "metric" && styles.unitOptionSelected,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.unitOptionText,
-                      units === 'metric' && styles.unitOptionTextSelected,
-                    ]}>
+                      units === "metric" && styles.unitOptionTextSelected,
+                    ]}
+                  >
                     Metric (g)
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handleToggleUnits('imperial')}
+                  onPress={() => handleToggleUnits("imperial")}
                   style={[
                     styles.unitOption,
-                    units === 'imperial' && styles.unitOptionSelected,
-                  ]}>
+                    units === "imperial" && styles.unitOptionSelected,
+                  ]}
+                >
                   <Text
                     style={[
                       styles.unitOptionText,
-                      units === 'imperial' && styles.unitOptionTextSelected,
-                    ]}>
+                      units === "imperial" && styles.unitOptionTextSelected,
+                    ]}
+                  >
                     Imperial (oz)
                   </Text>
                 </TouchableOpacity>
@@ -221,8 +285,17 @@ export default function ProfileScreen() {
 
             <View style={styles.preferenceRow}>
               <View style={styles.preferenceLeft}>
-                <Ionicons name="moon-outline" size={20} color={Colors.light.textMuted} />
-                <Text style={[styles.preferenceLabel, { color: Colors.light.textSecondary }]}>
+                <Ionicons
+                  name="moon-outline"
+                  size={20}
+                  color={Colors.light.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.preferenceLabel,
+                    { color: Colors.light.textSecondary },
+                  ]}
+                >
                   Dark Mode
                 </Text>
               </View>
@@ -238,15 +311,26 @@ export default function ProfileScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handleExportData}
-              style={styles.dataActionRow}>
+              style={styles.dataActionRow}
+            >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="download-outline" size={20} color={Colors.light.primary} />
+                <Ionicons
+                  name="download-outline"
+                  size={20}
+                  color={Colors.light.primary}
+                />
                 <View>
                   <Text style={styles.dataActionTitle}>Export Data</Text>
-                  <Text style={styles.dataActionSubtitle}>Backup food history as JSON</Text>
+                  <Text style={styles.dataActionSubtitle}>
+                    Backup food history as JSON
+                  </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={Colors.light.textMuted}
+              />
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -254,17 +338,33 @@ export default function ProfileScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setShowClearConfirm(true)}
-              style={styles.dataActionRow}>
+              style={styles.dataActionRow}
+            >
               <View style={styles.preferenceLeft}>
-                <Ionicons name="trash-outline" size={20} color={Colors.light.danger} />
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color={Colors.light.danger}
+                />
                 <View>
-                  <Text style={[styles.dataActionTitle, { color: Colors.light.danger }]}>
+                  <Text
+                    style={[
+                      styles.dataActionTitle,
+                      { color: Colors.light.danger },
+                    ]}
+                  >
                     Clear All Data
                   </Text>
-                  <Text style={styles.dataActionSubtitle}>Delete all saved food records</Text>
+                  <Text style={styles.dataActionSubtitle}>
+                    Delete saved food, health, and settings data
+                  </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.light.textMuted} />
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={Colors.light.textMuted}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -274,7 +374,8 @@ export default function ProfileScreen() {
           <Text style={styles.aboutTitle}>AI Nutrition Tracker</Text>
           <Text style={styles.aboutSubtitle}>Version 1.0.0 (MVP)</Text>
           <Text style={styles.aboutDescription}>
-            All your nutritional and food records are strictly stored locally on your device via SQLite. No account or internet connection required.
+            All your nutritional and food records are strictly stored locally on
+            your device via SQLite. No account or internet connection required.
           </Text>
         </View>
       </ScrollView>
@@ -328,7 +429,7 @@ export default function ProfileScreen() {
       <ConfirmationDialog
         visible={showClearConfirm}
         title="Clear All Data?"
-        message="This action will permanently delete all your logged food entries and reset your daily nutrition targets. This cannot be undone."
+        message="This action will permanently delete your food entries and health history, and reset your profile and targets. This cannot be undone."
         confirmText="Clear All Data"
         cancelText="Cancel"
         isDestructive
@@ -359,8 +460,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.light.surface,
     padding: Spacing.lg,
     borderRadius: Radii.xl,
@@ -374,8 +475,8 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: Colors.light.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: Spacing.md,
   },
   avatarInitials: {
@@ -387,8 +488,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
   },
   userName: {
@@ -397,8 +498,8 @@ const styles = StyleSheet.create({
     color: Colors.light.textPrimary,
   },
   badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     marginTop: 4,
   },
@@ -411,9 +512,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.sm,
   },
   sectionTitle: {
@@ -435,9 +536,9 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   targetMainRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   targetLabel: {
     fontSize: Typography.sizes.xs,
@@ -456,8 +557,8 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   targetPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.light.caloriesBg,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
@@ -475,11 +576,11 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.md,
   },
   targetMacrosRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   targetMacroCol: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   targetMacroDot: {
@@ -505,13 +606,13 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   preferenceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   preferenceLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.sm,
   },
   preferenceLabel: {
@@ -520,7 +621,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textPrimary,
   },
   unitsToggle: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: Colors.light.surfaceSecondary,
     borderRadius: Radii.md,
     padding: 3,
@@ -560,9 +661,9 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   dataActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 4,
   },
   dataActionTitle: {
@@ -576,7 +677,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   aboutCard: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.lg,
   },
@@ -594,19 +695,19 @@ const styles = StyleSheet.create({
   aboutDescription: {
     fontSize: Typography.sizes.xs,
     color: Colors.light.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 18,
     maxWidth: 300,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
     padding: Spacing.xl,
   },
   modalCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 340,
     backgroundColor: Colors.light.surface,
     borderRadius: Radii.xl,
@@ -630,11 +731,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.md,
   },
   exportModalCard: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     height: 480,
     backgroundColor: Colors.light.surface,
@@ -648,7 +749,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   exportCodeText: {
-    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
     fontSize: 11,
     color: Colors.light.textPrimary,
   },
