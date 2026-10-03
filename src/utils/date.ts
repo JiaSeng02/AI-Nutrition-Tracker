@@ -88,6 +88,23 @@ export function getTimeGreeting(): string {
 
 export function formatTime(isoOrTimestamp: string): string {
   try {
+    // New format: local datetime without timezone suffix, e.g. "2026-10-03T16:30:00.000"
+    // Parse the time part directly to avoid any JS Date UTC interpretation.
+    const hasTimezone = isoOrTimestamp.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(isoOrTimestamp);
+
+    if (!hasTimezone && isoOrTimestamp.includes('T')) {
+      const timePart = isoOrTimestamp.split('T')[1]; // e.g. "16:30:00.000"
+      if (!timePart) return '';
+      const [hourStr, minuteStr] = timePart.split(':');
+      const hour = parseInt(hourStr, 10);
+      const minute = parseInt(minuteStr, 10);
+      if (isNaN(hour) || isNaN(minute)) return '';
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+      return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`;
+    }
+
+    // Legacy format: includes Z or offset — use Date constructor (UTC-aware path)
     const d = new Date(isoOrTimestamp);
     if (isNaN(d.getTime())) return '';
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });

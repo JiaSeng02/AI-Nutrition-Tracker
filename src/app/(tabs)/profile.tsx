@@ -22,7 +22,7 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { SecondaryButton } from '../../components/SecondaryButton';
 
 export default function ProfileScreen() {
-  const [userName, setUserName] = useState('Alex');
+  const [userName, setUserName] = useState('User');
   const [targets, setTargets] = useState<DailyTargets | null>(null);
   const [units, setUnits] = useState('metric');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -34,11 +34,11 @@ export default function ProfileScreen() {
     try {
       const [currentTargets, name, unitSetting] = await Promise.all([
         getTargets(),
-        getSetting('user_name', 'Alex'),
+        getSetting('user_name', 'User'),
         getSetting('units', 'metric'),
       ]);
       setTargets(currentTargets);
-      setUserName(name || 'Alex');
+      setUserName(name || 'User');
       setUnits(unitSetting || 'metric');
     } catch (err) {
       console.warn('Failed to load profile data:', err);

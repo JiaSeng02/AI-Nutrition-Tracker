@@ -75,6 +75,7 @@ export async function clearAllData(): Promise<void> {
     DELETE FROM foods;
     UPDATE daily_targets SET calorie_target = 2000, protein_target = 120, carbs_target = 220, fat_target = 65 WHERE id = 1;
     UPDATE settings SET value = 'User' WHERE key = 'user_name';
+    UPDATE settings SET value = 'metric' WHERE key = 'units';
   `);
 }
 

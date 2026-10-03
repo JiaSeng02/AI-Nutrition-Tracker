@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+
 import { MealType, NewFoodInput } from '../types/food';
 import { MEAL_TYPES } from '../types/nutrition';
 import { Colors, Typography, Spacing, Radii } from '../constants/theme';
@@ -73,11 +73,30 @@ export const FoodForm: React.FC<FoodFormProps> = ({
     }
   };
 
-  const handleTakePhoto = () => {
-    // Navigate to camera scan screen with return parameter or set photo
-    router.push({
-      pathname: '/(tabs)/scan',
-    });
+  const handleTakePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission Needed',
+          'Camera access is needed to take food photos.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open camera.');
+    }
   };
 
   const handleRemovePhoto = () => {

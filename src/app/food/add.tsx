@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import { useLocalSearchParams, router, useNavigation } from 'expo-router';
 import { FoodForm } from '../../components/FoodForm';
 import { addFood, getFoodById, updateFood } from '../../database/foodRepository';
 import { MealType, NewFoodInput } from '../../types/food';
-import { Colors, Spacing } from '../../constants/theme';
+import { Colors, Spacing, Typography } from '../../constants/theme';
 import { getTodayISOString } from '../../utils/date';
 
 export default function AddFoodScreen() {
@@ -14,12 +14,26 @@ export default function AddFoodScreen() {
     photoUri?: string;
     editId?: string;
   }>();
+  const navigation = useNavigation();
 
   const [loadingInitial, setLoadingInitial] = useState(!!params.editId);
   const [initialValues, setInitialValues] = useState<Partial<NewFoodInput>>({
     meal_type: params.mealType || 'breakfast',
     photo_uri: params.photoUri || null,
   });
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.cancelButton}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   useEffect(() => {
     async function loadExisting() {
@@ -54,8 +68,12 @@ export default function AddFoodScreen() {
     } else {
       const selectedDate = params.date || getTodayISOString();
       const now = new Date();
-      const timePart = now.toTimeString().split(' ')[0]; // HH:MM:SS
-      const fullTimestamp = `${selectedDate}T${timePart}.000Z`;
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      // Store as local datetime string so LIKE 'YYYY-MM-DD%' queries in SQLite work correctly
+      // regardless of the device timezone (no UTC offset applied).
+      const fullTimestamp = `${selectedDate}T${hh}:${mm}:${ss}.000`;
 
       await addFood({
         ...values,
@@ -97,5 +115,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.light.background,
+  },
+  cancelButton: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  cancelText: {
+    fontSize: Typography.sizes.md,
+    color: Colors.light.primary,
+    fontWeight: Typography.weights.medium,
   },
 });
