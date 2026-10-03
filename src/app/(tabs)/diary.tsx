@@ -1,24 +1,38 @@
-import React, { useCallback, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
-import { getTodayISOString, formatDisplayDate } from '../../utils/date';
-import { getDailyNutritionSummary, deleteFood } from '../../database/foodRepository';
-import { DailyNutritionSummary, FoodItem, MealType } from '../../types/food';
-import { DateSelector } from '../../components/DateSelector';
-import { MealCard } from '../../components/MealCard';
-import { EmptyState } from '../../components/EmptyState';
-import { ConfirmationDialog } from '../../components/ConfirmationDialog';
-import { formatKcal } from '../../utils/nutrition';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmationDialog } from "../../components/ConfirmationDialog";
+import { DateSelector } from "../../components/DateSelector";
+import { EmptyState } from "../../components/EmptyState";
+import { MealCard } from "../../components/MealCard";
+import { ProgressBar } from "../../components/ProgressBar";
+import {
+  Colors,
+  Radii,
+  Shadows,
+  Spacing,
+  Typography,
+} from "../../constants/theme";
+import {
+  deleteFood,
+  getDailyNutritionSummary,
+} from "../../database/foodRepository";
+import { DailyNutritionSummary, FoodItem, MealType } from "../../types/food";
+import { formatDisplayDate, getTodayISOString } from "../../utils/date";
+import {
+  calculateProgress,
+  formatKcal,
+  getNutritionGoalCaption,
+} from "../../utils/nutrition";
 
 export default function DiaryScreen() {
   const [selectedDate, setSelectedDate] = useState(getTodayISOString());
@@ -31,14 +45,14 @@ export default function DiaryScreen() {
       const data = await getDailyNutritionSummary(dateStr);
       setSummary(data);
     } catch (err) {
-      console.warn('Failed to load diary data:', err);
+      console.warn("Failed to load diary data:", err);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadData(selectedDate);
-    }, [loadData, selectedDate])
+    }, [loadData, selectedDate]),
   );
 
   const onRefresh = async () => {
@@ -54,7 +68,7 @@ export default function DiaryScreen() {
 
   const handleAddFood = (mealType?: MealType) => {
     router.push({
-      pathname: '/food/add',
+      pathname: "/food/add",
       params: {
         date: selectedDate,
         ...(mealType ? { mealType } : {}),
@@ -64,7 +78,7 @@ export default function DiaryScreen() {
 
   const handleFoodItemPress = (item: FoodItem) => {
     router.push({
-      pathname: '/food/[id]',
+      pathname: "/food/[id]",
       params: { id: item.id.toString() },
     });
   };
@@ -89,7 +103,7 @@ export default function DiaryScreen() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -99,17 +113,21 @@ export default function DiaryScreen() {
             tintColor={Colors.light.primary}
           />
         }
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Food Diary</Text>
-            <Text style={styles.subtitle}>{formatDisplayDate(selectedDate)}</Text>
+            <Text style={styles.subtitle}>
+              {formatDisplayDate(selectedDate)}
+            </Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => handleAddFood()}
-            style={styles.addButton}>
+            style={styles.addButton}
+          >
             <Ionicons name="add" size={24} color={Colors.light.textInverse} />
           </TouchableOpacity>
         </View>
@@ -166,25 +184,82 @@ export default function DiaryScreen() {
                 <View style={styles.dailyTotalCard}>
                   <View style={styles.dailyTotalHeader}>
                     <Text style={styles.dailyTotalTitle}>Daily total</Text>
-                    <Text style={styles.dailyTotalCalories}>
-                      {formatKcal(summary.totalCalories)}
-                    </Text>
+                    <View style={styles.dailyTotalValueWrap}>
+                      <Text style={styles.dailyTotalCalories}>
+                        {formatKcal(summary.totalCalories)}
+                      </Text>
+                      <Text style={styles.dailyTotalTarget}>
+                        Target {formatKcal(summary.calorieTarget)}
+                      </Text>
+                    </View>
                   </View>
+
+                  <ProgressBar
+                    progress={calculateProgress(
+                      summary.totalCalories,
+                      summary.calorieTarget,
+                    )}
+                    color={Colors.light.calories}
+                    backgroundColor={Colors.light.surfaceSecondary}
+                    height={8}
+                    style={styles.dailyProgressBar}
+                  />
+                  <Text style={styles.goalCaption}>
+                    {getNutritionGoalCaption(summary.nutritionGoal)}
+                  </Text>
 
                   <View style={styles.dailyTotalDivider} />
 
                   <View style={styles.macrosSummaryRow}>
                     <View style={styles.macroTag}>
-                      <Text style={[styles.macroDotText, { color: Colors.light.protein }]}>●</Text>
-                      <Text style={styles.macroTagText}>Protein: {Math.round(summary.totalProtein)}g</Text>
+                      <View style={styles.macroTagLabelRow}>
+                        <Text
+                          style={[
+                            styles.macroDotText,
+                            { color: Colors.light.protein },
+                          ]}
+                        >
+                          ●
+                        </Text>
+                        <Text style={styles.macroTagText}>Protein</Text>
+                      </View>
+                      <Text style={styles.macroTargetValue}>
+                        {Math.round(summary.totalProtein)} /{" "}
+                        {summary.proteinTarget}g
+                      </Text>
                     </View>
                     <View style={styles.macroTag}>
-                      <Text style={[styles.macroDotText, { color: Colors.light.carbs }]}>●</Text>
-                      <Text style={styles.macroTagText}>Carbs: {Math.round(summary.totalCarbs)}g</Text>
+                      <View style={styles.macroTagLabelRow}>
+                        <Text
+                          style={[
+                            styles.macroDotText,
+                            { color: Colors.light.carbs },
+                          ]}
+                        >
+                          ●
+                        </Text>
+                        <Text style={styles.macroTagText}>Carbs</Text>
+                      </View>
+                      <Text style={styles.macroTargetValue}>
+                        {Math.round(summary.totalCarbs)} / {summary.carbsTarget}
+                        g
+                      </Text>
                     </View>
                     <View style={styles.macroTag}>
-                      <Text style={[styles.macroDotText, { color: Colors.light.fat }]}>●</Text>
-                      <Text style={styles.macroTagText}>Fat: {Math.round(summary.totalFat)}g</Text>
+                      <View style={styles.macroTagLabelRow}>
+                        <Text
+                          style={[
+                            styles.macroDotText,
+                            { color: Colors.light.fat },
+                          ]}
+                        >
+                          ●
+                        </Text>
+                        <Text style={styles.macroTagText}>Fat</Text>
+                      </View>
+                      <Text style={styles.macroTargetValue}>
+                        {Math.round(summary.totalFat)} / {summary.fatTarget}g
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -220,9 +295,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.lg,
   },
   title: {
@@ -241,8 +316,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.light.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     ...Shadows.card,
   },
   mealsContainer: {
@@ -259,9 +334,9 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   dailyTotalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   dailyTotalTitle: {
     fontSize: Typography.sizes.md,
@@ -273,26 +348,52 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.extrabold,
     color: Colors.light.primaryDark,
   },
+  dailyTotalValueWrap: {
+    alignItems: "flex-end",
+  },
+  dailyTotalTarget: {
+    color: Colors.light.textMuted,
+    fontSize: Typography.sizes.xs,
+    marginTop: 2,
+  },
+  dailyProgressBar: {
+    marginTop: Spacing.md,
+  },
+  goalCaption: {
+    color: Colors.light.textMuted,
+    fontSize: Typography.sizes.xs,
+    marginTop: Spacing.xs,
+  },
   dailyTotalDivider: {
     height: 1,
     backgroundColor: Colors.light.border,
     marginVertical: Spacing.md,
   },
   macrosSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   macroTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+  },
+  macroTagLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   macroDotText: {
     fontSize: 10,
   },
   macroTagText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: 10,
     fontWeight: Typography.weights.medium,
     color: Colors.light.textSecondary,
+  },
+  macroTargetValue: {
+    fontSize: 10,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.light.textPrimary,
   },
 });

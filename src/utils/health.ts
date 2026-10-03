@@ -2,6 +2,18 @@ import { ActivityLevel, EnergySexParameter } from "../types/health";
 
 const POUNDS_PER_KILOGRAM = 2.2046226218;
 const CENTIMETERS_PER_INCH = 2.54;
+const BMI_SCALE_MIN = 16;
+const BMI_SCALE_MAX = 40;
+
+export function getAdultBmiScalePosition(bmi: number): number {
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      ((bmi - BMI_SCALE_MIN) / (BMI_SCALE_MAX - BMI_SCALE_MIN)) * 100,
+    ),
+  );
+}
 
 export function calculateBmi(
   heightCm: number | null,
@@ -16,7 +28,7 @@ export function getAdultBmiCategory(
   bmi: number,
   age: number | null,
 ): string | null {
-  if (age === null || age < 20) return null;
+  if (age === null || age < 18) return null;
   if (bmi < 18.5) return "Underweight";
   if (bmi < 25) return "Healthy weight";
   if (bmi < 30) return "Overweight";

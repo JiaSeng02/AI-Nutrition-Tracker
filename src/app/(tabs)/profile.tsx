@@ -24,6 +24,12 @@ import {
   Spacing,
   Typography,
 } from "../../constants/theme";
+import { getHealthProfile } from "../../database/healthRepository";
+import {
+  applyHealthEstimateAsTarget,
+  getNutritionTargetMetadata,
+  syncHealthEnergyEstimate,
+} from "../../database/nutritionTargetRepository";
 import {
   clearAllData,
   exportAllData,
@@ -32,10 +38,18 @@ import {
   setSetting,
 } from "../../database/settingsRepository";
 import { DailyTargets } from "../../types/food";
+import { HealthProfile } from "../../types/health";
+import { NutritionTargetMetadata } from "../../types/nutritionTarget";
+import { estimateDailyEnergyNeeds } from "../../utils/health";
 
 export default function ProfileScreen() {
   const [userName, setUserName] = useState("User");
   const [targets, setTargets] = useState<DailyTargets | null>(null);
+  const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(
+    null,
+  );
+  const [targetMetadata, setTargetMetadata] =
+    useState<NutritionTargetMetadata | null>(null);
   const [units, setUnits] = useState("metric");
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState("");
@@ -44,12 +58,27 @@ export default function ProfileScreen() {
 
   const loadProfile = useCallback(async () => {
     try {
-      const [currentTargets, name, unitSetting] = await Promise.all([
-        getTargets(),
-        getSetting("user_name", "User"),
-        getSetting("units", "metric"),
-      ]);
+      const savedHealthProfile = await getHealthProfile();
+      const healthEstimate = savedHealthProfile
+        ? estimateDailyEnergyNeeds(
+            savedHealthProfile.age,
+            savedHealthProfile.height_cm,
+            savedHealthProfile.weight_kg,
+            savedHealthProfile.sex_parameter,
+            savedHealthProfile.activity_level,
+          )
+        : null;
+      await syncHealthEnergyEstimate(healthEstimate);
+      const [currentTargets, name, unitSetting, currentMetadata] =
+        await Promise.all([
+          getTargets(),
+          getSetting("user_name", "User"),
+          getSetting("units", "metric"),
+          getNutritionTargetMetadata(),
+        ]);
       setTargets(currentTargets);
+      setHealthProfile(savedHealthProfile);
+      setTargetMetadata(currentMetadata);
       setUserName(name || "User");
       setUnits(unitSetting || "metric");
     } catch (err) {
@@ -74,6 +103,42 @@ export default function ProfileScreen() {
     setUnits(selectedUnit);
     await setSetting("units", selectedUnit);
   };
+
+  const handleUseHealthEstimate = async () => {
+    const estimatedCalories = healthProfile
+      ? estimateDailyEnergyNeeds(
+          healthProfile.age,
+          healthProfile.height_cm,
+          healthProfile.weight_kg,
+          healthProfile.sex_parameter,
+          healthProfile.activity_level,
+        )
+      : null;
+    if (estimatedCalories === null) return;
+
+    try {
+      await applyHealthEstimateAsTarget(estimatedCalories);
+      await loadProfile();
+    } catch (error) {
+      console.warn("Failed to use Health estimate:", error);
+      Alert.alert("Could not update target", "Please try again.");
+    }
+  };
+
+  const energyEstimate = healthProfile
+    ? estimateDailyEnergyNeeds(
+        healthProfile.age,
+        healthProfile.height_cm,
+        healthProfile.weight_kg,
+        healthProfile.sex_parameter,
+        healthProfile.activity_level,
+      )
+    : null;
+  const nutritionGoalLabel = {
+    general: "Maintain / General Nutrition",
+    consistency: "Improve Nutrition Consistency",
+    custom: "Custom Target",
+  }[targetMetadata?.goal ?? "general"];
 
   const handleClearAllData = async () => {
     setShowClearConfirm(false);
@@ -166,7 +231,7 @@ export default function ProfileScreen() {
             <View style={styles.targetsCard}>
               <View style={styles.targetMainRow}>
                 <View>
-                  <Text style={styles.targetLabel}>Calorie Target</Text>
+                  <Text style={styles.targetLabel}>Current target</Text>
                   <Text style={styles.targetValue}>
                     {targets.calorie_target.toLocaleString()}{" "}
                     <Text style={styles.targetUnit}>kcal</Text>
@@ -178,9 +243,50 @@ export default function ProfileScreen() {
                     size={16}
                     color={Colors.light.calories}
                   />
-                  <Text style={styles.targetPillText}>Daily Goal</Text>
+                  <Text style={styles.targetPillText}>
+                    {targetMetadata?.source === "custom"
+                      ? "Custom target"
+                      : targetMetadata?.source === "suggested"
+                        ? "Health estimate"
+                        : "Starting target"}
+                  </Text>
                 </View>
               </View>
+
+              <Text style={styles.goalLabel}>{nutritionGoalLabel}</Text>
+
+              {energyEstimate !== null &&
+                healthProfile?.age != null &&
+                healthProfile.age >= 18 && (
+                  <View style={styles.estimatePanel}>
+                    <Text style={styles.estimateLabel}>
+                      Estimated daily energy needs
+                    </Text>
+                    <Text style={styles.estimateValue}>
+                      ~{Math.round(energyEstimate).toLocaleString()} kcal/day
+                    </Text>
+                    <Text style={styles.targetLabel}>
+                      Suggested starting point, not a medical recommendation.
+                    </Text>
+                    {targetMetadata?.suggestionPending && (
+                      <Text style={styles.suggestionNotice}>
+                        Your Health estimate changed. Review the suggested
+                        target before applying it.
+                      </Text>
+                    )}
+                    {(Math.round(energyEstimate) !== targets.calorie_target ||
+                      targetMetadata?.suggestionPending) && (
+                      <TouchableOpacity
+                        style={styles.useEstimateButton}
+                        onPress={() => void handleUseHealthEstimate()}
+                      >
+                        <Text style={styles.useEstimateText}>
+                          Use Health Estimate
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
 
               <View style={styles.divider} />
 
@@ -544,6 +650,46 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     color: Colors.light.textSecondary,
     fontWeight: Typography.weights.medium,
+  },
+  goalLabel: {
+    color: Colors.light.primaryDark,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold,
+    marginTop: Spacing.sm,
+  },
+  estimatePanel: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.light.primaryMuted,
+  },
+  estimateLabel: {
+    color: Colors.light.primaryDark,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold,
+  },
+  estimateValue: {
+    color: Colors.light.textPrimary,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    marginTop: 2,
+    marginBottom: Spacing.xs,
+  },
+  suggestionNotice: {
+    color: Colors.light.warning,
+    fontSize: Typography.sizes.xs,
+    lineHeight: 18,
+    marginTop: Spacing.sm,
+  },
+  useEstimateButton: {
+    minHeight: 44,
+    justifyContent: "center",
+    alignSelf: "flex-start",
+  },
+  useEstimateText: {
+    color: Colors.light.primaryDark,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold,
   },
   targetValue: {
     fontSize: Typography.sizes.xxl,

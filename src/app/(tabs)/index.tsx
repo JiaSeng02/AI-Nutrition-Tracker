@@ -140,6 +140,7 @@ export default function HomeScreen() {
             carbsTarget={summary.carbsTarget}
             fat={summary.totalFat}
             fatTarget={summary.fatTarget}
+            nutritionGoal={summary.nutritionGoal}
           />
         )}
 

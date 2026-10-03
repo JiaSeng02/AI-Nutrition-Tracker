@@ -1,9 +1,16 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../constants/theme';
-import { ProgressBar } from './ProgressBar';
-import { calculateProgress } from '../utils/nutrition';
+import { Ionicons } from "@expo/vector-icons";
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  Colors,
+  Radii,
+  Shadows,
+  Spacing,
+  Typography,
+} from "../constants/theme";
+import { NutritionGoal } from "../types/food";
+import { calculateProgress, getNutritionGoalCaption } from "../utils/nutrition";
+import { ProgressBar } from "./ProgressBar";
 
 interface NutritionCardProps {
   calories: number;
@@ -14,6 +21,7 @@ interface NutritionCardProps {
   carbsTarget: number;
   fat: number;
   fatTarget: number;
+  nutritionGoal?: NutritionGoal;
 }
 
 export const NutritionCard: React.FC<NutritionCardProps> = ({
@@ -25,6 +33,7 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
   carbsTarget,
   fat,
   fatTarget,
+  nutritionGoal = "general",
 }) => {
   const calorieProgress = calculateProgress(calories, calorieTarget);
   const remainingCalories = Math.max(calorieTarget - calories, 0);
@@ -35,7 +44,12 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
       <View style={styles.mainCard}>
         <View style={styles.headerRow}>
           <View style={styles.titleWithIcon}>
-            <View style={[styles.iconBadge, { backgroundColor: Colors.light.caloriesBg }]}>
+            <View
+              style={[
+                styles.iconBadge,
+                { backgroundColor: Colors.light.caloriesBg },
+              ]}
+            >
               <Ionicons name="flame" size={18} color={Colors.light.calories} />
             </View>
             <Text style={styles.mainTitle}>Calories</Text>
@@ -48,8 +62,13 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
         </View>
 
         <View style={styles.calorieRow}>
-          <Text style={styles.calorieCurrent}>{Math.round(calories).toLocaleString()}</Text>
-          <Text style={styles.calorieTarget}> / {Math.round(calorieTarget).toLocaleString()} kcal</Text>
+          <Text style={styles.calorieCurrent}>
+            {Math.round(calories).toLocaleString()}
+          </Text>
+          <Text style={styles.calorieTarget}>
+            {" "}
+            / {Math.round(calorieTarget).toLocaleString()} kcal
+          </Text>
         </View>
 
         <ProgressBar
@@ -59,6 +78,9 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
           height={10}
           style={styles.progressBar}
         />
+        <Text style={styles.goalHint}>
+          {getNutritionGoalCaption(nutritionGoal)}
+        </Text>
       </View>
 
       {/* 3 Macro Cards Side by Side */}
@@ -66,7 +88,12 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
         {/* Protein Card */}
         <View style={styles.macroCard}>
           <View style={styles.macroHeader}>
-            <View style={[styles.macroDot, { backgroundColor: Colors.light.protein }]} />
+            <View
+              style={[
+                styles.macroDot,
+                { backgroundColor: Colors.light.protein },
+              ]}
+            />
             <Text style={styles.macroLabel}>Protein</Text>
           </View>
           <Text style={styles.macroValue}>{Math.round(protein)} g</Text>
@@ -82,7 +109,9 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
         {/* Carbs Card */}
         <View style={styles.macroCard}>
           <View style={styles.macroHeader}>
-            <View style={[styles.macroDot, { backgroundColor: Colors.light.carbs }]} />
+            <View
+              style={[styles.macroDot, { backgroundColor: Colors.light.carbs }]}
+            />
             <Text style={styles.macroLabel}>Carbs</Text>
           </View>
           <Text style={styles.macroValue}>{Math.round(carbs)} g</Text>
@@ -98,7 +127,9 @@ export const NutritionCard: React.FC<NutritionCardProps> = ({
         {/* Fat Card */}
         <View style={styles.macroCard}>
           <View style={styles.macroHeader}>
-            <View style={[styles.macroDot, { backgroundColor: Colors.light.fat }]} />
+            <View
+              style={[styles.macroDot, { backgroundColor: Colors.light.fat }]}
+            />
             <Text style={styles.macroLabel}>Fat</Text>
           </View>
           <Text style={styles.macroValue}>{Math.round(fat)} g</Text>
@@ -128,21 +159,21 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.sm,
   },
   titleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: Spacing.sm,
   },
   mainTitle: {
@@ -156,8 +187,8 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   calorieRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    alignItems: "baseline",
     marginVertical: Spacing.xs,
   },
   calorieCurrent: {
@@ -174,8 +205,14 @@ const styles = StyleSheet.create({
   progressBar: {
     marginTop: Spacing.md,
   },
+  goalHint: {
+    marginTop: Spacing.sm,
+    color: Colors.light.textMuted,
+    fontSize: Typography.sizes.xs,
+    lineHeight: 17,
+  },
   macroRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: Spacing.md,
     gap: Spacing.md,
   },
@@ -189,8 +226,8 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   macroHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: Spacing.xs,
   },
   macroDot: {

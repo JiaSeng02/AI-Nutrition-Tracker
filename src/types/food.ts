@@ -1,4 +1,5 @@
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+export type NutritionGoal = "general" | "consistency" | "custom";
 
 export interface FoodItem {
   id: number;
@@ -14,11 +15,16 @@ export interface FoodItem {
   updated_at: string;
 }
 
-export type NewFoodInput = Omit<FoodItem, 'id' | 'created_at' | 'updated_at'> & {
+export type NewFoodInput = Omit<
+  FoodItem,
+  "id" | "created_at" | "updated_at"
+> & {
   created_at?: string; // Optional custom timestamp or date (defaults to now)
 };
 
-export type UpdateFoodInput = Partial<Omit<FoodItem, 'id' | 'created_at' | 'updated_at'>>;
+export type UpdateFoodInput = Partial<
+  Omit<FoodItem, "id" | "created_at" | "updated_at">
+>;
 
 export interface DailyTargets {
   id: number;
@@ -30,6 +36,7 @@ export interface DailyTargets {
 
 export interface DailyNutritionSummary {
   date: string; // YYYY-MM-DD
+  nutritionGoal: NutritionGoal;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;

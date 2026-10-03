@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BmiScale } from "../../components/BmiScale";
+import { NutritionCard } from "../../components/NutritionCard";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { TrendBarChart, TrendBarDatum } from "../../components/TrendBarChart";
 import {
@@ -21,13 +23,16 @@ import {
   Spacing,
   Typography,
 } from "../../constants/theme";
+import { getDailyNutritionSummary } from "../../database/foodRepository";
 import {
   getHealthMeasurements,
   getHealthProfile,
   getRecentNutritionDays,
   saveHealthProfile,
 } from "../../database/healthRepository";
+import { syncHealthEnergyEstimate } from "../../database/nutritionTargetRepository";
 import { getSetting, setSetting } from "../../database/settingsRepository";
+import { DailyNutritionSummary } from "../../types/food";
 import {
   ActivityLevel,
   EnergySexParameter,
@@ -36,6 +41,7 @@ import {
   HealthProfileInput,
   NutritionDay,
 } from "../../types/health";
+import { getTodayISOString } from "../../utils/date";
 import {
   calculateBmi,
   estimateDailyEnergyNeeds,
@@ -196,6 +202,8 @@ export default function HealthScreen() {
   const [profile, setProfile] = useState<HealthProfile | null>(null);
   const [measurements, setMeasurements] = useState<HealthMeasurement[]>([]);
   const [nutritionDays, setNutritionDays] = useState<NutritionDay[]>([]);
+  const [todaySummary, setTodaySummary] =
+    useState<DailyNutritionSummary | null>(null);
   const [units, setUnits] = useState<UnitSystem>("metric");
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -212,16 +220,29 @@ export default function HealthScreen() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const [savedProfile, savedMeasurements, savedNutrition, savedUnits] =
-        await Promise.all([
-          getHealthProfile(),
-          getHealthMeasurements(),
-          getRecentNutritionDays(),
-          getSetting("units", "metric"),
-        ]);
+      const [savedProfile, savedMeasurements, savedUnits] = await Promise.all([
+        getHealthProfile(),
+        getHealthMeasurements(),
+        getSetting("units", "metric"),
+      ]);
+      const energyEstimate = savedProfile
+        ? estimateDailyEnergyNeeds(
+            savedProfile.age,
+            savedProfile.height_cm,
+            savedProfile.weight_kg,
+            savedProfile.sex_parameter,
+            savedProfile.activity_level,
+          )
+        : null;
+      await syncHealthEnergyEstimate(energyEstimate);
+      const [savedNutrition, savedTodaySummary] = await Promise.all([
+        getRecentNutritionDays(),
+        getDailyNutritionSummary(getTodayISOString()),
+      ]);
       setProfile(savedProfile);
       setMeasurements(savedMeasurements);
       setNutritionDays(savedNutrition);
+      setTodaySummary(savedTodaySummary);
       setUnits(savedUnits === "imperial" ? "imperial" : "metric");
     } catch (error) {
       console.warn("Failed to load health dashboard:", error);
@@ -305,11 +326,18 @@ export default function HealthScreen() {
 
     setIsSaving(true);
     try {
-      const savedProfile = await saveHealthProfile(input);
-      const savedMeasurements = await getHealthMeasurements();
-      setProfile(savedProfile);
-      setMeasurements(savedMeasurements);
+      await saveHealthProfile(input);
+      await syncHealthEnergyEstimate(
+        estimateDailyEnergyNeeds(
+          input.age,
+          input.height_cm,
+          input.weight_kg,
+          input.sex_parameter,
+          input.activity_level,
+        ),
+      );
       setIsEditing(false);
+      await loadDashboard();
     } catch (error) {
       console.warn("Failed to save health profile:", error);
       Alert.alert(
@@ -327,6 +355,22 @@ export default function HealthScreen() {
   );
   const bmiCategory =
     bmi === null ? null : getAdultBmiCategory(bmi, profile?.age ?? null);
+  const bmiHistory: TrendBarDatum[] = measurements
+    .map((measurement) => {
+      const historicalBmi = calculateBmi(
+        measurement.height_cm ?? profile?.height_cm ?? null,
+        measurement.weight_kg,
+      );
+      return historicalBmi === null
+        ? null
+        : {
+            id: String(measurement.id),
+            label: getMeasurementLabel(measurement.recorded_at),
+            value: historicalBmi,
+          };
+    })
+    .filter((point): point is TrendBarDatum => point !== null)
+    .slice(-7);
   const energyEstimate = estimateDailyEnergyNeeds(
     profile?.age ?? null,
     profile?.height_cm ?? null,
@@ -575,13 +619,23 @@ export default function HealthScreen() {
               <Text style={styles.primaryMetric}>{bmi.toFixed(1)}</Text>
               {bmiCategory ? (
                 <Text style={styles.metricCaption}>
-                  {bmiCategory} (adult range)
+                  {bmiCategory} (standard adult ranges)
+                </Text>
+              ) : profile?.age !== null &&
+                profile?.age !== undefined &&
+                profile.age < 18 ? (
+                <Text style={styles.metricCaption}>
+                  BMI interpretation for children and teens uses age- and
+                  sex-specific growth references.
                 </Text>
               ) : (
                 <Text style={styles.metricCaption}>
-                  Standard BMI categories apply to adults age 20 and over.
+                  Enter your age to determine whether adult BMI ranges apply.
                 </Text>
               )}
+              {profile?.age !== null &&
+                profile?.age !== undefined &&
+                profile.age >= 18 && <BmiScale bmi={bmi} />}
             </>
           )}
           <Text style={styles.disclaimer}>
@@ -594,7 +648,7 @@ export default function HealthScreen() {
           {energyEstimate === null ? (
             <Text style={styles.emptyText}>
               {profile?.age != null && profile.age < 18
-                ? "This estimate is intended for adults age 18 and over."
+                ? "For individualized nutrition needs, talk with a parent or guardian and a qualified healthcare professional."
                 : "Complete your health profile to estimate your daily energy needs."}
             </Text>
           ) : (
@@ -611,6 +665,41 @@ export default function HealthScreen() {
             This is an estimate, not a precise measurement or medical
             recommendation.
           </Text>
+        </SectionCard>
+
+        <View style={styles.nutritionTodaySection}>
+          <Text style={styles.nutritionTodayTitle}>Nutrition today</Text>
+          {todaySummary && (
+            <NutritionCard
+              calories={todaySummary.totalCalories}
+              calorieTarget={todaySummary.calorieTarget}
+              protein={todaySummary.totalProtein}
+              proteinTarget={todaySummary.proteinTarget}
+              carbs={todaySummary.totalCarbs}
+              carbsTarget={todaySummary.carbsTarget}
+              fat={todaySummary.totalFat}
+              fatTarget={todaySummary.fatTarget}
+              nutritionGoal={todaySummary.nutritionGoal}
+            />
+          )}
+        </View>
+
+        <SectionCard
+          title="BMI trend"
+          detail="Calculated from recorded measurements"
+        >
+          {bmiHistory.length < 2 ? (
+            <Text style={styles.emptyText}>
+              Keep updating your measurements to see your BMI trend.
+            </Text>
+          ) : (
+            <TrendBarChart
+              data={bmiHistory}
+              color={Colors.light.info}
+              formatValue={(value) => value.toFixed(1)}
+              scaleFromMinimum
+            />
+          )}
         </SectionCard>
 
         <SectionCard
@@ -762,6 +851,15 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.md,
     ...Shadows.card,
+  },
+  nutritionTodaySection: {
+    marginTop: Spacing.xs,
+  },
+  nutritionTodayTitle: {
+    color: Colors.light.textPrimary,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    marginTop: Spacing.sm,
   },
   cardHeading: {
     flexDirection: "row",

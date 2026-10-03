@@ -1,5 +1,19 @@
+import { NutritionGoal } from "../types/food";
+
 export function formatKcal(calories: number): string {
   return `${Math.round(calories).toLocaleString()} kcal`;
+}
+
+export function getNutritionGoalCaption(goal: NutritionGoal): string {
+  switch (goal) {
+    case "consistency":
+      return "Focus on regular logging and patterns over time.";
+    case "custom":
+      return "Tracking against your own nutrition target.";
+    case "general":
+    default:
+      return "A flexible daily reference for general nutrition.";
+  }
 }
 
 export function formatGram(amount: number): string {
@@ -12,7 +26,11 @@ export function calculateProgress(current: number, target: number): number {
   return Math.min(Math.max(ratio, 0), 1);
 }
 
-export function calculateMacroPercentages(protein: number, carbs: number, fat: number) {
+export function calculateMacroPercentages(
+  protein: number,
+  carbs: number,
+  fat: number,
+) {
   const proteinKcal = protein * 4;
   const carbsKcal = carbs * 4;
   const fatKcal = fat * 9;

@@ -89,6 +89,10 @@ export async function clearAllData(): Promise<void> {
     UPDATE settings SET value = 'User' WHERE key = 'user_name';
     UPDATE settings SET value = 'metric' WHERE key = 'units';
   `);
+  await setSetting("nutrition_goal", "general");
+  await setSetting("nutrition_target_source", "default");
+  await setSetting("nutrition_suggested_calories", "");
+  await setSetting("nutrition_suggestion_pending", "false");
 }
 
 export async function exportAllData(): Promise<string> {
