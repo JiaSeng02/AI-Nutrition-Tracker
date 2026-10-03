@@ -132,7 +132,11 @@ export default function FoodLibraryScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/food-library/manage")}
+          onPress={() => {
+            setSearch("");
+            setCategory(null);
+            router.push("/food-library/manage");
+          }}
           style={styles.addButton}
           accessibilityLabel="Add custom food"
         >

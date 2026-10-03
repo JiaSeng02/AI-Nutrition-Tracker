@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmationDialog } from "../../components/ConfirmationDialog";
 import {
   Colors,
   Radii,
@@ -43,6 +44,7 @@ export default function FoodLibraryDetailsScreen() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const loadFood = useCallback(async () => {
     try {
@@ -115,30 +117,16 @@ export default function FoodLibraryDetailsScreen() {
     }
   };
 
-  const handleDeleteCustomFood = () => {
+  const handleDeleteCustomFood = async () => {
     if (!food || food.source_type !== "custom") return;
-    Alert.alert(
-      "Delete custom food?",
-      "This removes it from your food database. Diary entries already made with it will be kept.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void deleteCustomFood(food.id)
-              .then(() => router.back())
-              .catch((error) => {
-                console.warn("Custom food deletion failed:", error);
-                Alert.alert(
-                  "Delete failed",
-                  "Could not delete this custom food.",
-                );
-              });
-          },
-        },
-      ],
-    );
+    setShowDeleteConfirm(false);
+    try {
+      await deleteCustomFood(food.id);
+      router.replace("/food-library");
+    } catch (error) {
+      console.warn("Custom food deletion failed:", error);
+      Alert.alert("Delete failed", "Could not delete this custom food.");
+    }
   };
 
   if (isLoading) {
@@ -240,8 +228,9 @@ export default function FoodLibraryDetailsScreen() {
             )}
           </View>
           <Text style={styles.referenceNote}>
-            Nutrition is reference information and may vary by recipe and
-            portion.
+            {food.source_type === "reference"
+              ? "Nutrition is reference information and may vary by recipe and portion."
+              : "Nutrition values were entered by the user and may vary by recipe and portion."}
           </Text>
         </View>
 
@@ -264,7 +253,7 @@ export default function FoodLibraryDetailsScreen() {
               <Text style={styles.customActionText}>Edit custom food</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleDeleteCustomFood}
+              onPress={() => setShowDeleteConfirm(true)}
               style={styles.customAction}
             >
               <Ionicons
@@ -373,6 +362,16 @@ export default function FoodLibraryDetailsScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      <ConfirmationDialog
+        visible={showDeleteConfirm}
+        title="Delete custom food?"
+        message="This removes it from your food database. Diary entries already made with it will be kept."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDestructive
+        onConfirm={handleDeleteCustomFood}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </SafeAreaView>
   );
 }
