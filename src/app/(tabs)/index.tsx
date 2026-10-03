@@ -1,31 +1,36 @@
-import React, { useCallback, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  useWindowDimensions,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
-import { getTimeGreeting, getTodayISOString } from '../../utils/date';
-import { getDailyNutritionSummary, deleteFood } from '../../database/foodRepository';
-import { getSetting } from '../../database/settingsRepository';
-import { DailyNutritionSummary, FoodItem, MealType } from '../../types/food';
-import { NutritionCard } from '../../components/NutritionCard';
-import { MealCard } from '../../components/MealCard';
-import { EmptyState } from '../../components/EmptyState';
-import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmationDialog } from "../../components/ConfirmationDialog";
+import { EmptyState } from "../../components/EmptyState";
+import { MealCard } from "../../components/MealCard";
+import { NutritionCard } from "../../components/NutritionCard";
+import {
+  Colors,
+  Radii,
+  Shadows,
+  Spacing,
+  Typography,
+} from "../../constants/theme";
+import {
+  deleteFood,
+  getDailyNutritionSummary,
+} from "../../database/foodRepository";
+import { getSetting } from "../../database/settingsRepository";
+import { DailyNutritionSummary, FoodItem, MealType } from "../../types/food";
+import { getTimeGreeting, getTodayISOString } from "../../utils/date";
 
 export default function HomeScreen() {
-  const [userName, setUserName] = useState('User');
-  const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const isSmallScreen = width < 360;
+  const [userName, setUserName] = useState("User");
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<FoodItem | null>(null);
@@ -34,20 +39,20 @@ export default function HomeScreen() {
     try {
       const today = getTodayISOString();
       const [name, dailyData] = await Promise.all([
-        getSetting('user_name', 'User'),
+        getSetting("user_name", "User"),
         getDailyNutritionSummary(today),
       ]);
-      setUserName(name || 'User');
+      setUserName(name || "User");
       setSummary(dailyData);
     } catch (err) {
-      console.warn('Failed to load home data:', err);
+      console.warn("Failed to load home data:", err);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   const onRefresh = async () => {
@@ -57,19 +62,19 @@ export default function HomeScreen() {
   };
 
   const handleOpenScan = () => {
-    router.push('/(tabs)/scan');
+    router.push("/(tabs)/scan");
   };
 
   const handleAddFood = (mealType?: MealType) => {
     router.push({
-      pathname: '/food/add',
+      pathname: "/food/add",
       params: mealType ? { mealType } : undefined,
     });
   };
 
   const handleFoodItemPress = (item: FoodItem) => {
     router.push({
-      pathname: '/food/[id]',
+      pathname: "/food/[id]",
       params: { id: item.id.toString() },
     });
   };
@@ -94,7 +99,7 @@ export default function HomeScreen() {
     : 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -104,18 +109,22 @@ export default function HomeScreen() {
             tintColor={Colors.light.primary}
           />
         }
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         {/* Top Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greetingText}>{getTimeGreeting()}, {userName}</Text>
+            <Text style={styles.greetingText}>
+              {getTimeGreeting()}, {userName}
+            </Text>
             <Text style={styles.subGreetingText}>{"Today's nutrition"}</Text>
           </View>
 
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => handleAddFood()}
-            style={styles.quickAddButton}>
+            style={styles.quickAddButton}
+          >
             <Ionicons name="add" size={24} color={Colors.light.textInverse} />
           </TouchableOpacity>
         </View>
@@ -138,7 +147,7 @@ export default function HomeScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{"Today's meals"}</Text>
           {totalFoodsToday > 0 && (
-            <TouchableOpacity onPress={() => router.push('/(tabs)/diary')}>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/diary")}>
               <Text style={styles.sectionLink}>View Diary</Text>
             </TouchableOpacity>
           )}
@@ -188,23 +197,16 @@ export default function HomeScreen() {
             )}
           </View>
         )}
-      </ScrollView>
 
-      {/* Floating Scan Button */}
-      <View style={[styles.floatingScanContainer, { bottom: insets.bottom + 72 }]}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleOpenScan}
-          style={[
-            styles.floatingScanButton,
-            { paddingHorizontal: isSmallScreen ? Spacing.lg : Spacing.xxl },
-          ]}>
+          style={styles.scanButton}
+        >
           <Ionicons name="camera" size={20} color={Colors.light.textInverse} />
-          <Text style={[styles.floatingScanText, isSmallScreen && { fontSize: Typography.sizes.sm }]}>
-            Scan Food
-          </Text>
+          <Text style={styles.scanButtonText}>Scan Food</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Delete Item Confirmation Dialog */}
       <ConfirmationDialog
@@ -229,12 +231,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    paddingBottom: 120,
+    paddingBottom: Spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.xs,
   },
   greetingText: {
@@ -254,14 +256,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: Colors.light.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     ...Shadows.card,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: Spacing.xl,
     marginBottom: Spacing.md,
   },
@@ -278,28 +280,19 @@ const styles = StyleSheet.create({
   mealsList: {
     marginTop: Spacing.xs,
   },
-  floatingScanContainer: {
-    position: 'absolute',
-    bottom: 80, // sits above tab bar; adjusted dynamically via inline style
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  floatingScanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scanButton: {
+    alignSelf: "center",
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.light.textPrimary,
     paddingVertical: 14,
     paddingHorizontal: Spacing.xxl,
     borderRadius: Radii.full,
     gap: Spacing.sm,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
   },
-  floatingScanText: {
+  scanButtonText: {
     color: Colors.light.textInverse,
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,

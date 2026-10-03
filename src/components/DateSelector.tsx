@@ -1,8 +1,14 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii } from '../constants/theme';
-import { formatMonthYear, getDayItemsAround, parseISODate, formatDateToISO, getTodayISOString } from '../utils/date';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Colors, Radii, Spacing, Typography } from "../constants/theme";
+import {
+  formatDateToISO,
+  formatMonthYear,
+  getDayItemsAround,
+  getTodayISOString,
+  parseISODate,
+} from "../utils/date";
 
 interface DateSelectorProps {
   selectedDateStr: string; // YYYY-MM-DD
@@ -13,11 +19,14 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
   selectedDateStr,
   onSelectDate,
 }) => {
-  const selectedDate = useMemo(() => parseISODate(selectedDateStr), [selectedDateStr]);
-  const todayStr = useMemo(() => getTodayISOString(), []);
+  const selectedDate = useMemo(
+    () => parseISODate(selectedDateStr),
+    [selectedDateStr],
+  );
+  const todayStr = getTodayISOString();
 
   // Generate 7 days centered around selected date (3 days before, 3 days after)
-  const days = useMemo(() => getDayItemsAround(selectedDate, 3, 3), [selectedDate]);
+  const days = getDayItemsAround(selectedDate, 3, 3);
 
   const handlePrevMonth = () => {
     const prevMonth = new Date(selectedDate);
@@ -42,8 +51,13 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         <TouchableOpacity
           onPress={handlePrevMonth}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.arrowButton}>
-          <Ionicons name="chevron-back" size={20} color={Colors.light.textPrimary} />
+          style={styles.arrowButton}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={20}
+            color={Colors.light.textPrimary}
+          />
         </TouchableOpacity>
 
         <Text style={styles.monthText}>{formatMonthYear(selectedDate)}</Text>
@@ -51,12 +65,20 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
         <TouchableOpacity
           onPress={handleNextMonth}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.arrowButton}>
-          <Ionicons name="chevron-forward" size={20} color={Colors.light.textPrimary} />
+          style={styles.arrowButton}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.light.textPrimary}
+          />
         </TouchableOpacity>
 
         {selectedDateStr !== todayStr && (
-          <TouchableOpacity onPress={handleJumpToToday} style={styles.todayButton}>
+          <TouchableOpacity
+            onPress={handleJumpToToday}
+            style={styles.todayButton}
+          >
             <Text style={styles.todayButtonText}>Today</Text>
           </TouchableOpacity>
         )}
@@ -71,22 +93,19 @@ export const DateSelector: React.FC<DateSelectorProps> = ({
               key={item.dateStr}
               activeOpacity={0.7}
               onPress={() => onSelectDate(item.dateStr)}
-              style={[
-                styles.dayPill,
-                isSelected && styles.dayPillSelected,
-              ]}>
+              style={[styles.dayPill, isSelected && styles.dayPillSelected]}
+            >
               <Text
-                style={[
-                  styles.dayName,
-                  isSelected && styles.dayTextSelected,
-                ]}>
+                style={[styles.dayName, isSelected && styles.dayTextSelected]}
+              >
                 {item.dayName}
               </Text>
               <Text
                 style={[
                   styles.dayNumber,
                   isSelected && styles.dayNumberSelected,
-                ]}>
+                ]}
+              >
                 {item.dayNumber}
               </Text>
               {item.isToday && (
@@ -115,11 +134,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.xs,
-    position: 'relative',
+    position: "relative",
   },
   arrowButton: {
     padding: Spacing.xs,
@@ -131,7 +150,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.md,
   },
   todayButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     backgroundColor: Colors.light.primaryMuted,
     paddingHorizontal: Spacing.sm,
@@ -144,14 +163,14 @@ const styles = StyleSheet.create({
     color: Colors.light.primaryDark,
   },
   daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: Spacing.md,
     gap: 4,
   },
   dayPill: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.sm,
     borderRadius: Radii.md,
     backgroundColor: Colors.light.surfaceSecondary,
