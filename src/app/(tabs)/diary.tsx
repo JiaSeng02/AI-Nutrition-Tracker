@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   RefreshControl,
@@ -35,7 +35,8 @@ import {
 } from "../../utils/nutrition";
 
 export default function DiaryScreen() {
-  const [selectedDate, setSelectedDate] = useState(getTodayISOString());
+  const params = useLocalSearchParams<{ date?: string }>();
+  const selectedDate = params.date || getTodayISOString();
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<FoodItem | null>(null);
@@ -62,7 +63,7 @@ export default function DiaryScreen() {
   };
 
   const handleSelectDate = (dateStr: string) => {
-    setSelectedDate(dateStr);
+    router.setParams({ date: dateStr });
     loadData(dateStr);
   };
 

@@ -83,6 +83,7 @@ export async function clearAllData(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
     DELETE FROM foods;
+    DELETE FROM food_library WHERE source_type = 'custom';
     DELETE FROM health_profile;
     DELETE FROM health_measurements;
     UPDATE daily_targets SET calorie_target = 2000, protein_target = 120, carbs_target = 220, fat_target = 65 WHERE id = 1;
@@ -108,6 +109,9 @@ export async function exportAllData(): Promise<string> {
   const healthMeasurements = await db.getAllAsync(
     "SELECT * FROM health_measurements ORDER BY recorded_at ASC, id ASC;",
   );
+  const foodLibrary = await db.getAllAsync(
+    "SELECT * FROM food_library ORDER BY name COLLATE NOCASE ASC;",
+  );
 
   return JSON.stringify(
     {
@@ -118,6 +122,7 @@ export async function exportAllData(): Promise<string> {
       settings,
       healthProfile,
       healthMeasurements,
+      foodLibrary,
       foods,
     },
     null,

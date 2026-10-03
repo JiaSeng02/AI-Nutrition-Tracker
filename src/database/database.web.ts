@@ -1,4 +1,4 @@
-import { DailyTargets, FoodItem } from "../types/food";
+import { DailyTargets, FoodItem, FoodLibraryItem } from "../types/food";
 import { HealthMeasurement, HealthProfile } from "../types/health";
 
 export interface IDatabase {
@@ -18,6 +18,8 @@ const STORAGE_KEYS = {
   AUTO_ID: "nutrition_tracker_auto_id",
   HEALTH_PROFILE: "nutrition_tracker_health_profile",
   HEALTH_MEASUREMENTS: "nutrition_tracker_health_measurements",
+  FOOD_LIBRARY: "nutrition_tracker_food_library",
+  FOOD_LIBRARY_AUTO_ID: "nutrition_tracker_food_library_auto_id",
 };
 
 class MemoryStorage {
@@ -66,7 +68,16 @@ class WebDatabase implements IDatabase {
     const raw = storage.getItem(STORAGE_KEYS.FOODS);
     if (!raw) return [];
     try {
-      return JSON.parse(raw);
+      const foods = JSON.parse(raw) as Partial<FoodItem>[];
+      return foods.map((food) => ({
+        quantity: 1,
+        serving_size: 1,
+        serving_unit: "serving",
+        fiber: null,
+        food_library_id: null,
+        source_type: "user_entered",
+        ...food,
+      })) as FoodItem[];
     } catch {
       return [];
     }
@@ -74,6 +85,20 @@ class WebDatabase implements IDatabase {
 
   private saveFoods(foods: FoodItem[]): void {
     storage.setItem(STORAGE_KEYS.FOODS, JSON.stringify(foods));
+  }
+
+  private getFoodLibrary(): FoodLibraryItem[] {
+    const raw = storage.getItem(STORAGE_KEYS.FOOD_LIBRARY);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw) as FoodLibraryItem[];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveFoodLibrary(foods: FoodLibraryItem[]): void {
+    storage.setItem(STORAGE_KEYS.FOOD_LIBRARY, JSON.stringify(foods));
   }
 
   private getTargets(): DailyTargets {
@@ -122,9 +147,24 @@ class WebDatabase implements IDatabase {
     return next;
   }
 
+  private getNextFoodLibraryId(): number {
+    const raw = storage.getItem(STORAGE_KEYS.FOOD_LIBRARY_AUTO_ID);
+    const current = raw ? Number(raw) : 0;
+    const next = current + 1;
+    storage.setItem(STORAGE_KEYS.FOOD_LIBRARY_AUTO_ID, String(next));
+    return next;
+  }
+
   async execAsync(sql: string): Promise<void> {
     if (sql.includes("DELETE FROM foods")) {
       this.saveFoods([]);
+    }
+    if (sql.includes("DELETE FROM food_library WHERE source_type = 'custom'")) {
+      this.saveFoodLibrary(
+        this.getFoodLibrary().filter(
+          (food) => food.source_type === "reference",
+        ),
+      );
     }
     if (sql.includes("DELETE FROM health_profile")) {
       storage.removeItem(STORAGE_KEYS.HEALTH_PROFILE);
@@ -163,6 +203,119 @@ class WebDatabase implements IDatabase {
     ...params: any[]
   ): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim();
+
+    if (
+      trimmed.startsWith("INSERT INTO food_library") ||
+      trimmed.startsWith("INSERT OR IGNORE INTO food_library")
+    ) {
+      const [
+        name,
+        category,
+        serving_size,
+        serving_unit,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        description,
+        photo_uri,
+        source_type,
+        seed_key,
+        created_at,
+        updated_at,
+      ] = params;
+      const foods = this.getFoodLibrary();
+      if (seed_key && foods.some((food) => food.seed_key === seed_key)) {
+        return { lastInsertRowId: 0, changes: 0 };
+      }
+      const id = this.getNextFoodLibraryId();
+      foods.push({
+        id,
+        name: String(name),
+        category,
+        serving_size: Number(serving_size),
+        serving_unit: String(serving_unit),
+        calories: Number(calories) || 0,
+        protein: Number(protein) || 0,
+        carbs: Number(carbs) || 0,
+        fat: Number(fat) || 0,
+        fiber: fiber == null ? null : Number(fiber),
+        description: description ?? null,
+        photo_uri: photo_uri ?? null,
+        source_type,
+        seed_key: seed_key ?? null,
+        created_at: String(created_at),
+        updated_at: String(updated_at),
+      });
+      this.saveFoodLibrary(foods);
+      return { lastInsertRowId: id, changes: 1 };
+    }
+
+    if (trimmed.startsWith("UPDATE food_library")) {
+      const [
+        name,
+        category,
+        serving_size,
+        serving_unit,
+        calories,
+        protein,
+        carbs,
+        fat,
+        fiber,
+        description,
+        photo_uri,
+        updated_at,
+        id,
+      ] = params;
+      const foods = this.getFoodLibrary();
+      const index = foods.findIndex(
+        (food) => food.id === Number(id) && food.source_type === "custom",
+      );
+      if (index < 0) return { lastInsertRowId: 0, changes: 0 };
+      foods[index] = {
+        ...foods[index],
+        name: String(name),
+        category,
+        serving_size: Number(serving_size),
+        serving_unit: String(serving_unit),
+        calories: Number(calories) || 0,
+        protein: Number(protein) || 0,
+        carbs: Number(carbs) || 0,
+        fat: Number(fat) || 0,
+        fiber: fiber == null ? null : Number(fiber),
+        description: description ?? null,
+        photo_uri: photo_uri ?? null,
+        updated_at: String(updated_at),
+      };
+      this.saveFoodLibrary(foods);
+      return { lastInsertRowId: Number(id), changes: 1 };
+    }
+
+    if (trimmed.startsWith("UPDATE foods SET food_library_id = NULL")) {
+      const id = Number(params[0]);
+      const foods = this.getFoods();
+      let changes = 0;
+      for (const food of foods) {
+        if (food.food_library_id === id) {
+          food.food_library_id = null;
+          changes += 1;
+        }
+      }
+      this.saveFoods(foods);
+      return { lastInsertRowId: 0, changes };
+    }
+
+    if (trimmed.startsWith("DELETE FROM food_library")) {
+      const id = Number(params[0]);
+      const foods = this.getFoodLibrary();
+      const next = foods.filter(
+        (food) => food.id !== id || food.source_type !== "custom",
+      );
+      const changes = foods.length - next.length;
+      this.saveFoodLibrary(next);
+      return { lastInsertRowId: 0, changes };
+    }
 
     if (trimmed.startsWith("INSERT INTO health_profile")) {
       const [
@@ -230,6 +383,12 @@ class WebDatabase implements IDatabase {
         notes,
         created_at,
         updated_at,
+        quantity,
+        serving_size,
+        serving_unit,
+        fiber,
+        food_library_id,
+        source_type,
       ] = params;
 
       const newFood: FoodItem = {
@@ -242,6 +401,13 @@ class WebDatabase implements IDatabase {
         fat: Number(fat) || 0,
         photo_uri: photo_uri ?? null,
         notes: notes ?? null,
+        quantity: Number(quantity) || 1,
+        serving_size: Number(serving_size) || 1,
+        serving_unit: String(serving_unit || "serving"),
+        fiber: fiber == null ? null : Number(fiber),
+        food_library_id:
+          food_library_id == null ? null : Number(food_library_id),
+        source_type: source_type || "user_entered",
         created_at: String(created_at),
         updated_at: String(updated_at),
       };
@@ -264,6 +430,12 @@ class WebDatabase implements IDatabase {
         photo_uri,
         notes,
         updated_at,
+        quantity,
+        serving_size,
+        serving_unit,
+        fiber,
+        food_library_id,
+        source_type,
         id,
       ] = params;
       const index = foods.findIndex((f) => f.id === Number(id));
@@ -279,6 +451,13 @@ class WebDatabase implements IDatabase {
           fat: Number(fat) || 0,
           photo_uri: photo_uri ?? null,
           notes: notes ?? null,
+          quantity: Number(quantity) || 1,
+          serving_size: Number(serving_size) || 1,
+          serving_unit: String(serving_unit || "serving"),
+          fiber: fiber == null ? null : Number(fiber),
+          food_library_id:
+            food_library_id == null ? null : Number(food_library_id),
+          source_type: source_type || foods[index].source_type,
           updated_at: String(updated_at),
         };
         this.saveFoods(foods);
@@ -333,6 +512,13 @@ class WebDatabase implements IDatabase {
   async getFirstAsync<T>(sql: string, ...params: any[]): Promise<T | null> {
     const trimmed = sql.trim();
 
+    if (trimmed.includes("FROM food_library WHERE id = ?")) {
+      const id = Number(params[0]);
+      return (
+        (this.getFoodLibrary().find((food) => food.id === id) as T) ?? null
+      );
+    }
+
     if (trimmed.includes("FROM health_profile")) {
       const raw = storage.getItem(STORAGE_KEYS.HEALTH_PROFILE);
       if (!raw) return null;
@@ -371,6 +557,12 @@ class WebDatabase implements IDatabase {
 
   async getAllAsync<T>(sql: string, ...params: any[]): Promise<T[]> {
     const trimmed = sql.trim();
+
+    if (trimmed.includes("FROM food_library")) {
+      const foods = this.getFoodLibrary();
+      foods.sort((a, b) => a.name.localeCompare(b.name));
+      return foods as T[];
+    }
 
     if (trimmed.includes("FROM health_measurements")) {
       const raw = storage.getItem(STORAGE_KEYS.HEALTH_MEASUREMENTS);

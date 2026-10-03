@@ -41,6 +41,28 @@ async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS food_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      serving_size REAL NOT NULL DEFAULT 1,
+      serving_unit TEXT NOT NULL DEFAULT 'serving',
+      calories REAL NOT NULL DEFAULT 0,
+      protein REAL NOT NULL DEFAULT 0,
+      carbs REAL NOT NULL DEFAULT 0,
+      fat REAL NOT NULL DEFAULT 0,
+      fiber REAL,
+      description TEXT,
+      photo_uri TEXT,
+      source_type TEXT NOT NULL DEFAULT 'custom',
+      seed_key TEXT UNIQUE,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_food_library_name ON food_library(name COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_food_library_category ON food_library(category);
+
     CREATE TABLE IF NOT EXISTS daily_targets (
       id INTEGER PRIMARY KEY,
       calorie_target INTEGER NOT NULL DEFAULT 2000,
@@ -80,4 +102,49 @@ async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('user_name', 'User');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('units', 'metric');
   `);
+  await migrateFoodDiarySchema(db);
+}
+
+async function migrateFoodDiarySchema(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  const versionRow = await db.getFirstAsync<{ user_version: number }>(
+    "PRAGMA user_version;",
+  );
+  const currentVersion = versionRow?.user_version ?? 0;
+  if (currentVersion >= 1) return;
+
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(foods);",
+  );
+  const existingColumns = new Set(columns.map((column) => column.name));
+  const additions: [string, string][] = [
+    [
+      "quantity",
+      "ALTER TABLE foods ADD COLUMN quantity REAL NOT NULL DEFAULT 1;",
+    ],
+    [
+      "serving_size",
+      "ALTER TABLE foods ADD COLUMN serving_size REAL NOT NULL DEFAULT 1;",
+    ],
+    [
+      "serving_unit",
+      "ALTER TABLE foods ADD COLUMN serving_unit TEXT NOT NULL DEFAULT 'serving';",
+    ],
+    ["fiber", "ALTER TABLE foods ADD COLUMN fiber REAL;"],
+    [
+      "food_library_id",
+      "ALTER TABLE foods ADD COLUMN food_library_id INTEGER;",
+    ],
+    [
+      "source_type",
+      "ALTER TABLE foods ADD COLUMN source_type TEXT NOT NULL DEFAULT 'user_entered';",
+    ],
+  ];
+
+  for (const [column, statement] of additions) {
+    if (!existingColumns.has(column)) await db.execAsync(statement);
+  }
+
+  await db.execAsync("PRAGMA user_version = 1;");
 }

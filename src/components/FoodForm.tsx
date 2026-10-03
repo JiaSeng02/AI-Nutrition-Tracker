@@ -1,21 +1,22 @@
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Image,
-  Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+  View,
+} from "react-native";
 
-import { MealType, NewFoodInput } from '../types/food';
-import { MEAL_TYPES } from '../types/nutrition';
-import { Colors, Typography, Spacing, Radii } from '../constants/theme';
-import { PrimaryButton } from './PrimaryButton';
+import { Colors, Radii, Spacing, Typography } from "../constants/theme";
+import { MealType, NewFoodInput } from "../types/food";
+import { MEAL_TYPES } from "../types/nutrition";
+import { formatNutritionAmount } from "../utils/foodNutrition";
+import { PrimaryButton } from "./PrimaryButton";
 
 interface FoodFormProps {
   initialValues?: Partial<NewFoodInput>;
@@ -25,41 +26,57 @@ interface FoodFormProps {
 
 export const FoodForm: React.FC<FoodFormProps> = ({
   initialValues,
-  submitLabel = 'Save Food',
+  submitLabel = "Save Food",
   onSubmit,
 }) => {
-  const [name, setName] = useState(initialValues?.name || '');
-  const [mealType, setMealType] = useState<MealType>(initialValues?.meal_type || 'breakfast');
+  const [name, setName] = useState(initialValues?.name || "");
+  const [mealType, setMealType] = useState<MealType>(
+    initialValues?.meal_type || "breakfast",
+  );
   const [calories, setCalories] = useState(
-    initialValues?.calories !== undefined ? String(initialValues.calories) : ''
+    initialValues?.calories !== undefined
+      ? formatNutritionAmount(initialValues.calories, 4)
+      : "",
   );
   const [protein, setProtein] = useState(
-    initialValues?.protein !== undefined ? String(initialValues.protein) : ''
+    initialValues?.protein !== undefined
+      ? formatNutritionAmount(initialValues.protein, 4)
+      : "",
   );
   const [carbs, setCarbs] = useState(
-    initialValues?.carbs !== undefined ? String(initialValues.carbs) : ''
+    initialValues?.carbs !== undefined
+      ? formatNutritionAmount(initialValues.carbs, 4)
+      : "",
   );
   const [fat, setFat] = useState(
-    initialValues?.fat !== undefined ? String(initialValues.fat) : ''
+    initialValues?.fat !== undefined
+      ? formatNutritionAmount(initialValues.fat, 4)
+      : "",
   );
-  const [notes, setNotes] = useState(initialValues?.notes || '');
-  const [photoUri, setPhotoUri] = useState<string | null>(initialValues?.photo_uri || null);
+  const [notes, setNotes] = useState(initialValues?.notes || "");
+  const [photoUri, setPhotoUri] = useState<string | null>(
+    initialValues?.photo_uri || null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; calories?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; calories?: string }>(
+    {},
+  );
+  const hasServingSnapshot = initialValues?.food_library_id != null;
 
   const handlePickImage = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
-          'Permission Needed',
-          'Photo library access is needed to attach food photos.'
+          "Permission Needed",
+          "Photo library access is needed to attach food photos.",
         );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -69,7 +86,7 @@ export const FoodForm: React.FC<FoodFormProps> = ({
         setPhotoUri(result.assets[0].uri);
       }
     } catch {
-      Alert.alert('Error', 'Could not open photo gallery.');
+      Alert.alert("Error", "Could not open photo gallery.");
     }
   };
 
@@ -78,14 +95,14 @@ export const FoodForm: React.FC<FoodFormProps> = ({
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
-          'Permission Needed',
-          'Camera access is needed to take food photos.'
+          "Permission Needed",
+          "Camera access is needed to take food photos.",
         );
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -95,7 +112,7 @@ export const FoodForm: React.FC<FoodFormProps> = ({
         setPhotoUri(result.assets[0].uri);
       }
     } catch {
-      Alert.alert('Error', 'Could not open camera.');
+      Alert.alert("Error", "Could not open camera.");
     }
   };
 
@@ -107,11 +124,28 @@ export const FoodForm: React.FC<FoodFormProps> = ({
     const newErrors: { name?: string; calories?: string } = {};
 
     if (!name.trim()) {
-      newErrors.name = 'Please enter a food name';
+      newErrors.name = "Please enter a food name";
     }
 
-    if (!calories.trim() || isNaN(Number(calories)) || Number(calories) < 0) {
-      newErrors.calories = 'Please enter valid calories';
+    if (
+      !calories.trim() ||
+      !Number.isFinite(Number(calories)) ||
+      Number(calories) < 0
+    ) {
+      newErrors.calories = "Please enter valid calories";
+    }
+
+    const macroInputs = [protein, carbs, fat];
+    const hasInvalidMacro = macroInputs.some(
+      (value) =>
+        value.trim() && (!Number.isFinite(Number(value)) || Number(value) < 0),
+    );
+    if (hasInvalidMacro) {
+      Alert.alert(
+        "Check macronutrients",
+        "Enter non-negative numbers for protein, carbs, and fat.",
+      );
+      return;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -134,8 +168,8 @@ export const FoodForm: React.FC<FoodFormProps> = ({
         photo_uri: photoUri,
       });
     } catch (err) {
-      console.warn('Food save error:', err);
-      Alert.alert('Save Failed', 'Could not save food item. Please try again.');
+      console.warn("Food save error:", err);
+      Alert.alert("Save Failed", "Could not save food item. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +179,8 @@ export const FoodForm: React.FC<FoodFormProps> = ({
     <ScrollView
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+    >
       {/* Food Name Field */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>Food Name *</Text>
@@ -156,7 +191,8 @@ export const FoodForm: React.FC<FoodFormProps> = ({
           value={name}
           onChangeText={(val) => {
             setName(val);
-            if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+            if (errors.name)
+              setErrors((prev) => ({ ...prev, name: undefined }));
           }}
         />
         {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
@@ -179,7 +215,8 @@ export const FoodForm: React.FC<FoodFormProps> = ({
                     backgroundColor: m.bgColor,
                     borderColor: m.color,
                   },
-                ]}>
+                ]}
+              >
                 <Ionicons
                   name={m.icon as keyof typeof Ionicons.glyphMap}
                   size={16}
@@ -188,8 +225,12 @@ export const FoodForm: React.FC<FoodFormProps> = ({
                 <Text
                   style={[
                     styles.mealTypeText,
-                    isSelected && { color: m.color, fontWeight: Typography.weights.bold },
-                  ]}>
+                    isSelected && {
+                      color: m.color,
+                      fontWeight: Typography.weights.bold,
+                    },
+                  ]}
+                >
                   {m.title}
                 </Text>
               </TouchableOpacity>
@@ -201,7 +242,12 @@ export const FoodForm: React.FC<FoodFormProps> = ({
       {/* Calories (Prominent Field) */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>Calories (kcal) *</Text>
-        <View style={[styles.inputWithUnit, errors.calories ? styles.inputError : null]}>
+        <View
+          style={[
+            styles.inputWithUnit,
+            errors.calories ? styles.inputError : null,
+          ]}
+        >
           <TextInput
             style={styles.unitInput}
             placeholder="0"
@@ -210,20 +256,34 @@ export const FoodForm: React.FC<FoodFormProps> = ({
             value={calories}
             onChangeText={(val) => {
               setCalories(val);
-              if (errors.calories) setErrors((prev) => ({ ...prev, calories: undefined }));
+              if (errors.calories)
+                setErrors((prev) => ({ ...prev, calories: undefined }));
             }}
           />
           <Text style={styles.unitLabel}>kcal</Text>
         </View>
-        {errors.calories && <Text style={styles.errorText}>{errors.calories}</Text>}
+        {errors.calories && (
+          <Text style={styles.errorText}>{errors.calories}</Text>
+        )}
       </View>
 
       {/* Macro Row (Protein, Carbs, Fat) */}
-      <Text style={[styles.label, { marginBottom: Spacing.xs }]}>Macronutrients (Optional)</Text>
+      <Text style={[styles.label, { marginBottom: Spacing.xs }]}>
+        Macronutrients (Optional)
+      </Text>
+      {hasServingSnapshot && (
+        <Text style={styles.servingSnapshotHint}>
+          These are diary totals for {initialValues?.quantity ?? 1} x{" "}
+          {initialValues?.serving_size ?? 1}{" "}
+          {initialValues?.serving_unit ?? "serving"}, not per-serving values.
+        </Text>
+      )}
       <View style={styles.macroInputsRow}>
         {/* Protein */}
         <View style={styles.macroInputCol}>
-          <Text style={[styles.macroLabel, { color: Colors.light.protein }]}>Protein</Text>
+          <Text style={[styles.macroLabel, { color: Colors.light.protein }]}>
+            Protein
+          </Text>
           <View style={styles.macroInputWrap}>
             <TextInput
               style={styles.macroInput}
@@ -239,7 +299,9 @@ export const FoodForm: React.FC<FoodFormProps> = ({
 
         {/* Carbs */}
         <View style={styles.macroInputCol}>
-          <Text style={[styles.macroLabel, { color: Colors.light.carbs }]}>Carbs</Text>
+          <Text style={[styles.macroLabel, { color: Colors.light.carbs }]}>
+            Carbs
+          </Text>
           <View style={styles.macroInputWrap}>
             <TextInput
               style={styles.macroInput}
@@ -255,7 +317,9 @@ export const FoodForm: React.FC<FoodFormProps> = ({
 
         {/* Fat */}
         <View style={styles.macroInputCol}>
-          <Text style={[styles.macroLabel, { color: Colors.light.fat }]}>Fat</Text>
+          <Text style={[styles.macroLabel, { color: Colors.light.fat }]}>
+            Fat
+          </Text>
           <View style={styles.macroInputWrap}>
             <TextInput
               style={styles.macroInput}
@@ -279,15 +343,30 @@ export const FoodForm: React.FC<FoodFormProps> = ({
             <View style={styles.photoActions}>
               <TouchableOpacity
                 onPress={handlePickImage}
-                style={styles.photoActionButton}>
-                <Ionicons name="images-outline" size={16} color={Colors.light.textPrimary} />
+                style={styles.photoActionButton}
+              >
+                <Ionicons
+                  name="images-outline"
+                  size={16}
+                  color={Colors.light.textPrimary}
+                />
                 <Text style={styles.photoActionText}>Change</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleRemovePhoto}
-                style={[styles.photoActionButton, styles.removePhotoButton]}>
-                <Ionicons name="trash-outline" size={16} color={Colors.light.danger} />
-                <Text style={[styles.photoActionText, { color: Colors.light.danger }]}>
+                style={[styles.photoActionButton, styles.removePhotoButton]}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={16}
+                  color={Colors.light.danger}
+                />
+                <Text
+                  style={[
+                    styles.photoActionText,
+                    { color: Colors.light.danger },
+                  ]}
+                >
                   Remove
                 </Text>
               </TouchableOpacity>
@@ -298,16 +377,26 @@ export const FoodForm: React.FC<FoodFormProps> = ({
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handlePickImage}
-              style={styles.photoPickerButton}>
-              <Ionicons name="images-outline" size={20} color={Colors.light.primary} />
+              style={styles.photoPickerButton}
+            >
+              <Ionicons
+                name="images-outline"
+                size={20}
+                color={Colors.light.primary}
+              />
               <Text style={styles.photoPickerText}>Choose Photo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handleTakePhoto}
-              style={styles.photoPickerButton}>
-              <Ionicons name="camera-outline" size={20} color={Colors.light.primary} />
+              style={styles.photoPickerButton}
+            >
+              <Ionicons
+                name="camera-outline"
+                size={20}
+                color={Colors.light.primary}
+              />
               <Text style={styles.photoPickerText}>Take Photo</Text>
             </TouchableOpacity>
           </View>
@@ -366,7 +455,7 @@ const styles = StyleSheet.create({
   textArea: {
     height: 90,
     paddingTop: Spacing.md,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   inputError: {
     borderColor: Colors.light.danger,
@@ -378,20 +467,20 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   mealTypeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.xs,
   },
   mealTypeButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: 4,
     borderRadius: Radii.md,
     backgroundColor: Colors.light.surfaceSecondary,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: "transparent",
     gap: 4,
   },
   mealTypeText: {
@@ -399,9 +488,16 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.light.textSecondary,
   },
+  servingSnapshotHint: {
+    color: Colors.light.textSecondary,
+    fontSize: Typography.sizes.xs,
+    lineHeight: 17,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
   inputWithUnit: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     height: 52,
     backgroundColor: Colors.light.surface,
     borderWidth: 1,
@@ -411,7 +507,7 @@ const styles = StyleSheet.create({
   },
   unitInput: {
     flex: 1,
-    height: '100%',
+    height: "100%",
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.bold,
     color: Colors.light.textPrimary,
@@ -422,7 +518,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   macroInputsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
@@ -435,8 +531,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   macroInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     height: 46,
     backgroundColor: Colors.light.surface,
     borderWidth: 1,
@@ -446,7 +542,7 @@ const styles = StyleSheet.create({
   },
   macroInput: {
     flex: 1,
-    height: '100%',
+    height: "100%",
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semibold,
     color: Colors.light.textPrimary,
@@ -456,14 +552,14 @@ const styles = StyleSheet.create({
     color: Colors.light.textMuted,
   },
   photoButtonsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.md,
   },
   photoPickerButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.md,
     backgroundColor: Colors.light.primaryMuted,
     borderRadius: Radii.lg,
@@ -481,22 +577,22 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   photoImage: {
-    width: '100%',
+    width: "100%",
     height: 180,
     backgroundColor: Colors.light.surfaceSecondary,
   },
   photoActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     padding: Spacing.sm,
     backgroundColor: Colors.light.surfaceSecondary,
   },
   photoActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radii.sm,

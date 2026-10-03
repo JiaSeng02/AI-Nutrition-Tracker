@@ -1,22 +1,30 @@
-import React, { useState, useCallback } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
   ActivityIndicator,
-} from 'react-native';
-import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { FoodItem } from '../../types/food';
-import { MEAL_TYPES } from '../../types/nutrition';
-import { getFoodById, deleteFood } from '../../database/foodRepository';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
-import { formatDisplayDate, formatTime } from '../../utils/date';
-import { PrimaryButton } from '../../components/PrimaryButton';
-import { SecondaryButton } from '../../components/SecondaryButton';
-import { ConfirmationDialog } from '../../components/ConfirmationDialog';
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { ConfirmationDialog } from "../../components/ConfirmationDialog";
+import { PrimaryButton } from "../../components/PrimaryButton";
+import { SecondaryButton } from "../../components/SecondaryButton";
+import {
+  Colors,
+  Radii,
+  Shadows,
+  Spacing,
+  Typography,
+} from "../../constants/theme";
+import { getFoodSourceLabel } from "../../database/foodLibraryRepository";
+import { deleteFood, getFoodById } from "../../database/foodRepository";
+import { FoodItem } from "../../types/food";
+import { MEAL_TYPES } from "../../types/nutrition";
+import { formatDisplayDate, formatTime } from "../../utils/date";
+import { formatNutritionAmount } from "../../utils/foodNutrition";
 
 export default function FoodDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +38,7 @@ export default function FoodDetailsScreen() {
       const item = await getFoodById(Number(id));
       setFood(item);
     } catch (e) {
-      console.warn('Error loading food details:', e);
+      console.warn("Error loading food details:", e);
     } finally {
       setLoading(false);
     }
@@ -39,13 +47,13 @@ export default function FoodDetailsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadItem();
-    }, [loadItem])
+    }, [loadItem]),
   );
 
   const handleEdit = () => {
     if (!food) return;
     router.push({
-      pathname: '/food/add',
+      pathname: "/food/add",
       params: { editId: food.id.toString() },
     });
   };
@@ -74,21 +82,33 @@ export default function FoodDetailsScreen() {
     );
   }
 
-  const mealMeta = MEAL_TYPES.find((m) => m.type === food.meal_type) || MEAL_TYPES[0];
-  const dateStr = food.created_at.split('T')[0];
+  const mealMeta =
+    MEAL_TYPES.find((m) => m.type === food.meal_type) || MEAL_TYPES[0];
+  const dateStr = food.created_at.split("T")[0];
   const timeFormatted = formatTime(food.created_at);
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Photo if available */}
         {food.photo_uri ? (
           <View style={styles.imageCard}>
-            <Image source={{ uri: food.photo_uri }} style={styles.image} resizeMode="cover" />
+            <Image
+              source={{ uri: food.photo_uri }}
+              style={styles.image}
+              resizeMode="cover"
+            />
           </View>
         ) : (
           <View style={styles.noPhotoPlaceholder}>
-            <Ionicons name="restaurant-outline" size={48} color={Colors.light.primary} />
+            <Ionicons
+              name="restaurant-outline"
+              size={48}
+              color={Colors.light.primary}
+            />
           </View>
         )}
 
@@ -96,7 +116,9 @@ export default function FoodDetailsScreen() {
         <View style={styles.infoCard}>
           <View style={styles.titleRow}>
             <Text style={styles.name}>{food.name}</Text>
-            <View style={[styles.mealBadge, { backgroundColor: mealMeta.bgColor }]}>
+            <View
+              style={[styles.mealBadge, { backgroundColor: mealMeta.bgColor }]}
+            >
               <Ionicons
                 name={mealMeta.icon as keyof typeof Ionicons.glyphMap}
                 size={14}
@@ -107,11 +129,21 @@ export default function FoodDetailsScreen() {
               </Text>
             </View>
           </View>
+          <View style={styles.snapshotRow}>
+            <Text style={styles.metaText}>
+              {food.quantity} x {food.serving_size} {food.serving_unit}
+            </Text>
+            <Text style={styles.sourceLabel}>
+              {getFoodSourceLabel(food.source_type)}
+            </Text>
+          </View>
 
           {/* Calories Display */}
           <View style={styles.calorieRow}>
             <Ionicons name="flame" size={24} color={Colors.light.calories} />
-            <Text style={styles.caloriesNumber}>{Math.round(food.calories).toLocaleString()}</Text>
+            <Text style={styles.caloriesNumber}>
+              {Math.round(food.calories).toLocaleString()}
+            </Text>
             <Text style={styles.caloriesUnit}>kcal</Text>
           </View>
 
@@ -121,38 +153,75 @@ export default function FoodDetailsScreen() {
           <Text style={styles.sectionHeading}>Nutritional Breakdown</Text>
           <View style={styles.macrosGrid}>
             <View style={styles.macroBox}>
-              <View style={[styles.macroDot, { backgroundColor: Colors.light.protein }]} />
+              <View
+                style={[
+                  styles.macroDot,
+                  { backgroundColor: Colors.light.protein },
+                ]}
+              />
               <Text style={styles.macroLabel}>Protein</Text>
-              <Text style={styles.macroValue}>{Math.round(food.protein)}g</Text>
-              <Text style={styles.macroKcal}>{Math.round(food.protein * 4)} kcal</Text>
+              <Text style={styles.macroValue}>
+                {formatNutritionAmount(food.protein)}g
+              </Text>
+              <Text style={styles.macroKcal}>
+                {Math.round(food.protein * 4)} kcal
+              </Text>
             </View>
 
             <View style={styles.macroBox}>
-              <View style={[styles.macroDot, { backgroundColor: Colors.light.carbs }]} />
+              <View
+                style={[
+                  styles.macroDot,
+                  { backgroundColor: Colors.light.carbs },
+                ]}
+              />
               <Text style={styles.macroLabel}>Carbs</Text>
-              <Text style={styles.macroValue}>{Math.round(food.carbs)}g</Text>
-              <Text style={styles.macroKcal}>{Math.round(food.carbs * 4)} kcal</Text>
+              <Text style={styles.macroValue}>
+                {formatNutritionAmount(food.carbs)}g
+              </Text>
+              <Text style={styles.macroKcal}>
+                {Math.round(food.carbs * 4)} kcal
+              </Text>
             </View>
 
             <View style={styles.macroBox}>
-              <View style={[styles.macroDot, { backgroundColor: Colors.light.fat }]} />
+              <View
+                style={[styles.macroDot, { backgroundColor: Colors.light.fat }]}
+              />
               <Text style={styles.macroLabel}>Fat</Text>
-              <Text style={styles.macroValue}>{Math.round(food.fat)}g</Text>
-              <Text style={styles.macroKcal}>{Math.round(food.fat * 9)} kcal</Text>
+              <Text style={styles.macroValue}>
+                {formatNutritionAmount(food.fat)}g
+              </Text>
+              <Text style={styles.macroKcal}>
+                {Math.round(food.fat * 9)} kcal
+              </Text>
             </View>
           </View>
+          {food.fiber !== null && (
+            <Text style={styles.fiberValue}>
+              Fiber: {formatNutritionAmount(food.fiber)}g
+            </Text>
+          )}
 
           <View style={styles.divider} />
 
           {/* Date and Time */}
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={16} color={Colors.light.textSecondary} />
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={Colors.light.textSecondary}
+              />
               <Text style={styles.metaText}>{formatDisplayDate(dateStr)}</Text>
             </View>
             {timeFormatted ? (
               <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={Colors.light.textSecondary} />
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={Colors.light.textSecondary}
+                />
                 <Text style={styles.metaText}>{timeFormatted}</Text>
               </View>
             ) : null}
@@ -163,7 +232,11 @@ export default function FoodDetailsScreen() {
             <View style={styles.notesSection}>
               <Text style={styles.notesLabel}>Notes</Text>
               <View style={styles.notesBox}>
-                <Ionicons name="document-text-outline" size={16} color={Colors.light.textMuted} />
+                <Ionicons
+                  name="document-text-outline"
+                  size={16}
+                  color={Colors.light.textMuted}
+                />
                 <Text style={styles.notesText}>{food.notes}</Text>
               </View>
             </View>
@@ -210,14 +283,14 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.light.background,
   },
   notFoundContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: Spacing.xl,
   },
   notFoundText: {
@@ -230,10 +303,10 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   imageCard: {
-    width: '100%',
+    width: "100%",
     height: 240,
     borderRadius: Radii.xl,
-    overflow: 'hidden',
+    overflow: "hidden",
     backgroundColor: Colors.light.surfaceSecondary,
     borderWidth: 1,
     borderColor: Colors.light.border,
@@ -241,16 +314,16 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   noPhotoPlaceholder: {
-    width: '100%',
+    width: "100%",
     height: 120,
     borderRadius: Radii.xl,
     backgroundColor: Colors.light.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: Spacing.lg,
   },
   infoCard: {
@@ -262,10 +335,25 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: Spacing.sm,
+  },
+  snapshotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: Spacing.xs,
+  },
+  sourceLabel: {
+    color: Colors.light.primaryDark,
+    backgroundColor: Colors.light.primaryMuted,
+    borderRadius: Radii.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 3,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold,
   },
   name: {
     flex: 1,
@@ -274,8 +362,8 @@ const styles = StyleSheet.create({
     color: Colors.light.textPrimary,
   },
   mealBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.md,
     paddingVertical: 5,
     borderRadius: Radii.full,
@@ -286,8 +374,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
   },
   calorieRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    alignItems: "baseline",
     marginTop: Spacing.md,
     gap: 6,
   },
@@ -314,15 +402,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   macrosGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.md,
+  },
+  fiberValue: {
+    color: Colors.light.textSecondary,
+    fontSize: Typography.sizes.xs,
+    marginTop: Spacing.sm,
   },
   macroBox: {
     flex: 1,
     backgroundColor: Colors.light.surfaceSecondary,
     borderRadius: Radii.lg,
     padding: Spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   macroDot: {
     width: 8,
@@ -347,13 +440,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xl,
   },
   metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   metaText: {
@@ -371,8 +464,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   notesBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     backgroundColor: Colors.light.surfaceSecondary,
     borderRadius: Radii.md,
     padding: Spacing.md,
@@ -385,11 +478,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bottomBar: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     backgroundColor: Colors.light.surface,

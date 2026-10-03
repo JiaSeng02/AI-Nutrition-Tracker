@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { getDatabase } from '../database/database';
-import { seedSampleData } from '../database/foodRepository';
-import { Colors } from '../constants/theme';
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { Colors } from "../constants/theme";
+import { getDatabase } from "../database/database";
+import { seedFoodLibrary } from "../database/foodLibraryRepository";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -15,11 +15,11 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Initialize SQLite DB schema and seed initial sample data
+        // Initialize SQLite schema before inserting the built-in reference catalog.
         await getDatabase();
-        await seedSampleData();
+        await seedFoodLibrary();
       } catch (e) {
-        console.warn('Initialization error:', e);
+        console.warn("Initialization error:", e);
       } finally {
         setIsReady(true);
         await SplashScreen.hideAsync();
@@ -44,51 +44,64 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.light.background },
-          animation: 'slide_from_right',
-        }}>
+          animation: "slide_from_right",
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="food/add"
           options={{
             headerShown: true,
-            title: 'Add Food',
-            presentation: 'modal',
+            title: "Add Food",
+            presentation: "modal",
             headerShadowVisible: false,
             headerStyle: { backgroundColor: Colors.light.surface },
-            headerTitleStyle: { fontWeight: '700', color: Colors.light.textPrimary },
+            headerTitleStyle: {
+              fontWeight: "700",
+              color: Colors.light.textPrimary,
+            },
           }}
         />
         <Stack.Screen
           name="food/[id]"
           options={{
             headerShown: true,
-            title: 'Food Details',
-            presentation: 'card',
+            title: "Food Details",
+            presentation: "card",
             headerShadowVisible: false,
             headerStyle: { backgroundColor: Colors.light.surface },
-            headerTitleStyle: { fontWeight: '700', color: Colors.light.textPrimary },
+            headerTitleStyle: {
+              fontWeight: "700",
+              color: Colors.light.textPrimary,
+            },
           }}
         />
         <Stack.Screen
           name="scan/preview"
           options={{
             headerShown: true,
-            title: 'Photo Preview',
-            presentation: 'card',
+            title: "Photo Preview",
+            presentation: "card",
             headerShadowVisible: false,
             headerStyle: { backgroundColor: Colors.light.surface },
-            headerTitleStyle: { fontWeight: '700', color: Colors.light.textPrimary },
+            headerTitleStyle: {
+              fontWeight: "700",
+              color: Colors.light.textPrimary,
+            },
           }}
         />
         <Stack.Screen
           name="profile/targets"
           options={{
             headerShown: true,
-            title: 'Daily Nutrition Targets',
-            presentation: 'modal',
+            title: "Daily Nutrition Targets",
+            presentation: "modal",
             headerShadowVisible: false,
             headerStyle: { backgroundColor: Colors.light.surface },
-            headerTitleStyle: { fontWeight: '700', color: Colors.light.textPrimary },
+            headerTitleStyle: {
+              fontWeight: "700",
+              color: Colors.light.textPrimary,
+            },
           }}
         />
       </Stack>
@@ -99,8 +112,8 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   splashFallback: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.light.background,
   },
 });

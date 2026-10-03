@@ -12,11 +12,9 @@ export async function addFood(input: NewFoodInput): Promise<FoodItem> {
   const db = await getDatabase();
   const now = new Date().toISOString();
   const createdAt = input.created_at || now;
-  const updatedAt = now;
-
   const result = await db.runAsync(
-    `INSERT INTO foods (name, meal_type, calories, protein, carbs, fat, photo_uri, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO foods (name, meal_type, calories, protein, carbs, fat, photo_uri, notes, created_at, updated_at, quantity, serving_size, serving_unit, fiber, food_library_id, source_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     input.name.trim(),
     input.meal_type,
     Number(input.calories) || 0,
@@ -26,13 +24,17 @@ export async function addFood(input: NewFoodInput): Promise<FoodItem> {
     input.photo_uri ?? null,
     input.notes?.trim() ?? null,
     createdAt,
-    updatedAt,
+    now,
+    input.quantity ?? 1,
+    input.serving_size ?? 1,
+    input.serving_unit ?? "serving",
+    input.fiber ?? null,
+    input.food_library_id ?? null,
+    input.source_type ?? "user_entered",
   );
 
   const inserted = await getFoodById(result.lastInsertRowId);
-  if (!inserted) {
-    throw new Error("Failed to retrieve newly added food item");
-  }
+  if (!inserted) throw new Error("Failed to retrieve newly added food item");
   return inserted;
 }
 
@@ -44,40 +46,31 @@ export async function updateFood(
   const current = await getFoodById(id);
   if (!current) return null;
 
-  const updatedName =
-    input.name !== undefined ? input.name.trim() : current.name;
-  const updatedMealType =
-    input.meal_type !== undefined ? input.meal_type : current.meal_type;
-  const updatedCalories =
-    input.calories !== undefined ? Number(input.calories) : current.calories;
-  const updatedProtein =
-    input.protein !== undefined ? Number(input.protein) : current.protein;
-  const updatedCarbs =
-    input.carbs !== undefined ? Number(input.carbs) : current.carbs;
-  const updatedFat = input.fat !== undefined ? Number(input.fat) : current.fat;
-  const updatedPhotoUri =
-    input.photo_uri !== undefined ? input.photo_uri : current.photo_uri;
-  const updatedNotes =
+  await db.runAsync(
+    `UPDATE foods
+     SET name = ?, meal_type = ?, calories = ?, protein = ?, carbs = ?, fat = ?, photo_uri = ?, notes = ?, updated_at = ?, quantity = ?, serving_size = ?, serving_unit = ?, fiber = ?, food_library_id = ?, source_type = ?
+     WHERE id = ?;`,
+    input.name !== undefined ? input.name.trim() : current.name,
+    input.meal_type ?? current.meal_type,
+    input.calories !== undefined ? Number(input.calories) : current.calories,
+    input.protein !== undefined ? Number(input.protein) : current.protein,
+    input.carbs !== undefined ? Number(input.carbs) : current.carbs,
+    input.fat !== undefined ? Number(input.fat) : current.fat,
+    input.photo_uri !== undefined ? input.photo_uri : current.photo_uri,
     input.notes !== undefined
       ? input.notes
         ? input.notes.trim()
         : null
-      : current.notes;
-  const now = new Date().toISOString();
-
-  await db.runAsync(
-    `UPDATE foods
-     SET name = ?, meal_type = ?, calories = ?, protein = ?, carbs = ?, fat = ?, photo_uri = ?, notes = ?, updated_at = ?
-     WHERE id = ?;`,
-    updatedName,
-    updatedMealType,
-    updatedCalories,
-    updatedProtein,
-    updatedCarbs,
-    updatedFat,
-    updatedPhotoUri,
-    updatedNotes,
-    now,
+      : current.notes,
+    new Date().toISOString(),
+    input.quantity ?? current.quantity,
+    input.serving_size ?? current.serving_size,
+    input.serving_unit ?? current.serving_unit,
+    input.fiber !== undefined ? input.fiber : current.fiber,
+    input.food_library_id !== undefined
+      ? input.food_library_id
+      : current.food_library_id,
+    input.source_type ?? current.source_type,
     id,
   );
 
@@ -101,13 +94,11 @@ export async function getFoodById(id: number): Promise<FoodItem | null> {
 
 export async function getFoodsByDate(dateStr: string): Promise<FoodItem[]> {
   const db = await getDatabase();
-  // dateStr is 'YYYY-MM-DD'
   const pattern = `${dateStr}%`;
-  const rows = await db.getAllAsync<FoodItem>(
+  return db.getAllAsync<FoodItem>(
     "SELECT * FROM foods WHERE created_at LIKE ? ORDER BY created_at ASC, id ASC;",
     pattern,
   );
-  return rows;
 }
 
 export async function getDailyNutritionSummary(
@@ -127,7 +118,6 @@ export async function getDailyNutritionSummary(
   let totalProtein = 0;
   let totalCarbs = 0;
   let totalFat = 0;
-
   const meals: DailyNutritionSummary["meals"] = {
     breakfast: [],
     lunch: [],
@@ -140,13 +130,9 @@ export async function getDailyNutritionSummary(
     totalProtein += item.protein;
     totalCarbs += item.carbs;
     totalFat += item.fat;
-
     const type = item.meal_type as MealType;
-    if (meals[type]) {
-      meals[type].push(item);
-    } else {
-      meals.snack.push(item);
-    }
+    if (meals[type]) meals[type].push(item);
+    else meals.snack.push(item);
   }
 
   return {
@@ -176,8 +162,6 @@ export async function clearAllFoods(): Promise<void> {
   await db.runAsync("DELETE FROM foods;");
 }
 
-// No sample data — app starts with a clean empty state.
-// This function is kept for forward compatibility.
 export async function seedSampleData(): Promise<void> {
-  // Intentionally empty — users start fresh with no pre-loaded food entries.
+  // Kept for compatibility with existing app initialization.
 }
