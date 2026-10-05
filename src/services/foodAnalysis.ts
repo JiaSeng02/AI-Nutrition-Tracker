@@ -1,55 +1,7 @@
 const API_URL =
   "https://ai-nutrition-tracker-api-phi.vercel.app/api/analyze-food";
 
-export interface CapturedImageData {
-  base64: string;
-  mimeType: string;
-}
-
-const capturedImages = new Map<string, CapturedImageData>();
-
-export function storeCapturedImage(
-  uri: string,
-  base64: string,
-  mimeType: string = "image/jpeg",
-): void {
-  capturedImages.set(uri, { base64, mimeType });
-}
-
-export function getCapturedImage(uri: string): CapturedImageData | null {
-  return capturedImages.get(uri) ?? null;
-}
-
-export async function loadCapturedImage(
-  uri: string,
-  mimeType: string = "image/jpeg",
-): Promise<CapturedImageData> {
-  const cached = getCapturedImage(uri);
-  if (cached?.base64) return cached;
-
-  if (!uri) {
-    throw new Error("No image was selected. Please choose a photo again.");
-  }
-
-  try {
-    const { File } = await import("expo-file-system");
-    const file = new File(uri);
-    const base64 = await file.base64();
-
-    if (!base64) {
-      throw new Error("The selected image could not be read.");
-    }
-
-    const data = { base64, mimeType };
-    storeCapturedImage(uri, base64, mimeType);
-    return data;
-  } catch (error) {
-    console.error("Failed to read captured image:", error);
-    throw new Error(
-      "The selected image could not be read. Please choose the photo again.",
-    );
-  }
-}
+export { getCapturedImage, loadCapturedImage, storeCapturedImage } from "./capturedImageStore";
 
 export interface FoodAnalysis {
   foodName: string;
