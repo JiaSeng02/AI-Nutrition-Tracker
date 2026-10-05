@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import { PhotoPreview } from '../../components/PhotoPreview';
-import { Colors } from '../../constants/theme';
-import { SecondaryButton } from '../../components/SecondaryButton';
+import { router, useLocalSearchParams } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+import { PhotoPreview } from "../../components/PhotoPreview";
+import { SecondaryButton } from "../../components/SecondaryButton";
+import { Colors } from "../../constants/theme";
+import { FoodAnalysis } from "../../services/foodAnalysis";
 
 export default function ScanPhotoPreviewScreen() {
   const { photoUri } = useLocalSearchParams<{ photoUri: string }>();
@@ -21,11 +21,20 @@ export default function ScanPhotoPreviewScreen() {
     router.back();
   };
 
-  const handleAddDetails = () => {
-    // Open Add Food screen with this photo attached
+  const handleUseResult = (analysis: FoodAnalysis) => {
     router.replace({
-      pathname: '/food/add',
-      params: { photoUri },
+      pathname: "/food/add",
+      params: {
+        photoUri,
+        foodName: analysis.foodName,
+        calories: String(analysis.calories),
+        protein: String(analysis.protein),
+        carbs: String(analysis.carbs),
+        fat: String(analysis.fat),
+        fiber: String(analysis.fiber),
+        servingEstimate: String(analysis.servingEstimate),
+        servingUnit: analysis.servingUnit,
+      },
     });
   };
 
@@ -34,7 +43,7 @@ export default function ScanPhotoPreviewScreen() {
       <PhotoPreview
         photoUri={photoUri}
         onRetake={handleRetake}
-        onAddDetails={handleAddDetails}
+        onUseResult={handleUseResult}
       />
     </View>
   );
@@ -47,8 +56,8 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.light.background,
     padding: 24,
   },
