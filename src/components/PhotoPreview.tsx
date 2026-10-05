@@ -17,10 +17,12 @@ import {
 } from "../constants/theme";
 import {
   analyzeFoodImage,
-  getCapturedImage,
-  loadCapturedImage,
   FoodAnalysis,
 } from "../services/foodAnalysis";
+import {
+  getCapturedImage,
+  loadCapturedImage,
+} from "../services/capturedImageStore";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
 
@@ -354,6 +356,30 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     position: "relative",
     ...Shadows.card,
+  },
+  imageLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(248, 250, 252, 0.88)",
+    gap: Spacing.sm,
+  },
+  imageLoadingText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.light.textSecondary,
+  },
+  imageErrorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.xl,
+    backgroundColor: Colors.light.surfaceSecondary,
+    gap: Spacing.sm,
+  },
+  imageErrorText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.light.textSecondary,
+    textAlign: "center",
   },
   imageCardSmall: {
     width: "100%",
