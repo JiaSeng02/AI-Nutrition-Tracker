@@ -34,7 +34,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   onRetake,
   onUseResult,
 }) => {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageData, setImageData] = useState(getCapturedImage(photoUri));\n  const [isLoadingImage, setIsLoadingImage] = useState(!getCapturedImage(photoUri));\n  const [imageError, setImageError] = useState<string | null>(null);\n  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
 
   const imageData = getCapturedImage(photoUri);
@@ -111,7 +111,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.imageCardSmall}>
-          <Image source={{ uri: previewSource }} style={styles.image} resizeMode="cover" />
+          <Image source={previewSource} style={styles.image} contentFit="cover" />
         </View>
 
         <View style={styles.foodHeader}>
