@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii } from '../constants/theme';
 import { PrimaryButton } from './PrimaryButton';
-import { storeCapturedImage } from '../services/foodAnalysis';
+import { storeCapturedImage } from '../services/capturedImageStore';
 
 interface CameraPreviewProps {
   onCapture: (photoUri: string) => void;
