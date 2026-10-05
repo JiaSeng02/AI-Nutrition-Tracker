@@ -1,7 +1,24 @@
-import * as FileSystem from "expo-file-system/legacy";
-
 const API_URL =
   "https://ai-nutrition-tracker-api-phi.vercel.app/api/analyze-food";
+
+export interface CapturedImageData {
+  base64: string;
+  mimeType: string;
+}
+
+const capturedImages = new Map<string, CapturedImageData>();
+
+export function storeCapturedImage(
+  uri: string,
+  base64: string,
+  mimeType: string = "image/jpeg",
+): void {
+  capturedImages.set(uri, { base64, mimeType });
+}
+
+export function getCapturedImage(uri: string): CapturedImageData | null {
+  return capturedImages.get(uri) ?? null;
+}
 
 export interface FoodAnalysis {
   foodName: string;
@@ -23,46 +40,13 @@ export interface AnalyzeFoodResult {
   analysis: FoodAnalysis;
 }
 
-function getMimeType(uri: string): string {
-  const extension = uri.split(".").pop()?.toLowerCase();
-
-  switch (extension) {
-    case "png":
-      return "image/png";
-    case "webp":
-      return "image/webp";
-    case "jpg":
-    case "jpeg":
-    default:
-      return "image/jpeg";
-  }
-}
-
-async function getBase64Image(uri: string): Promise<string> {
-  const fileName = `food-analysis-${Date.now()}.jpg`;
-  const destination = `${FileSystem.cacheDirectory}${fileName}`;
-
-  await FileSystem.copyAsync({
-    from: uri,
-    to: destination,
-  });
-
-  try {
-    return await FileSystem.readAsStringAsync(destination, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-  } finally {
-    await FileSystem.deleteAsync(destination, {
-      idempotent: true,
-    });
-  }
-}
-
 export async function analyzeFoodImage(
-  photoUri: string,
+  base64Image: string,
+  mimeType: string = "image/jpeg",
 ): Promise<AnalyzeFoodResult> {
-  const image = await getBase64Image(photoUri);
-  const mimeType = getMimeType(photoUri);
+  if (!base64Image) {
+    throw new Error("The selected image is no longer available. Please retake the photo.");
+  }
 
   const response = await fetch(API_URL, {
     method: "POST",
@@ -70,7 +54,7 @@ export async function analyzeFoodImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      image,
+      image: base64Image,
       mimeType,
     }),
   });
