@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii } from '../constants/theme';
 import { PrimaryButton } from './PrimaryButton';
+import { storeCapturedImage } from '../services/foodAnalysis';
 
 interface CameraPreviewProps {
   onCapture: (photoUri: string) => void;
@@ -41,11 +42,17 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({ onCapture }) => {
         mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.85,
+        quality: 0.75,
+        base64: true,
       });
 
-      if (!result.canceled && result.assets[0]?.uri) {
-        onCapture(result.assets[0].uri);
+      const asset = result.canceled ? null : result.assets[0];
+
+      if (asset?.uri && asset.base64) {
+        storeCapturedImage(asset.uri, asset.base64, 'image/jpeg');
+        onCapture(asset.uri);
+      } else if (!result.canceled) {
+        Alert.alert('Photo Error', 'Unable to read the selected photo. Please try another image.');
       }
     } catch {
       Alert.alert('Error', 'Unable to pick photo from gallery.');
@@ -58,12 +65,16 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({ onCapture }) => {
     try {
       setIsCapturing(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.85,
+        quality: 0.75,
         skipProcessing: false,
+        base64: true,
       });
 
-      if (photo?.uri) {
+      if (photo?.uri && photo.base64) {
+        storeCapturedImage(photo.uri, photo.base64, 'image/jpeg');
         onCapture(photo.uri);
+      } else {
+        Alert.alert('Camera Error', 'The photo could not be prepared. Please try again.');
       }
     } catch {
       Alert.alert('Camera Error', 'Could not capture photo. Please try again.');
