@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,11 @@ import {
   Spacing,
   Typography,
 } from "../constants/theme";
-import { analyzeFoodImage, FoodAnalysis } from "../services/foodAnalysis";
+import {
+  analyzeFoodImage,
+  getCapturedImage,
+  FoodAnalysis,
+} from "../services/foodAnalysis";
 import { PrimaryButton } from "./PrimaryButton";
 import { SecondaryButton } from "./SecondaryButton";
 
@@ -33,13 +37,29 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
 
+  const imageData = getCapturedImage(photoUri);
+
+  const previewSource = useMemo(() => {
+    if (!imageData?.base64) return photoUri;
+    return `data:${imageData.mimeType};base64,${imageData.base64}`;
+  }, [imageData, photoUri]);
+
   const handleAnalyze = async () => {
     if (isAnalyzing) return;
 
     try {
       setIsAnalyzing(true);
 
-      const result = await analyzeFoodImage(photoUri);
+      if (!imageData?.base64) {
+        throw new Error(
+          "The selected image is no longer available. Please retake the photo.",
+        );
+      }
+
+      const result = await analyzeFoodImage(
+        imageData.base64,
+        imageData.mimeType,
+      );
 
       setAnalysis(result.analysis);
     } catch (error) {
@@ -55,9 +75,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   };
 
   const handleUseResult = () => {
-    if (!analysis) return;
-
-    onUseResult(analysis);
+    if (analysis) onUseResult(analysis);
   };
 
   if (isAnalyzing) {
@@ -66,19 +84,15 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         <View style={styles.loadingIcon}>
           <Ionicons name="sparkles" size={32} color={Colors.light.primary} />
         </View>
-
         <ActivityIndicator
           size="large"
           color={Colors.light.primary}
           style={styles.spinner}
         />
-
         <Text style={styles.loadingTitle}>Analyzing your meal...</Text>
-
         <Text style={styles.loadingSubtitle}>
           AI is identifying the food and estimating its nutrition.
         </Text>
-
         <Text style={styles.estimateNotice}>
           Nutrition values are AI estimates and may not be exact.
         </Text>
@@ -97,43 +111,26 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.imageCardSmall}>
-          <Image
-            source={{ uri: photoUri }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: previewSource }} style={styles.image} resizeMode="cover" />
         </View>
 
         <View style={styles.foodHeader}>
           <Text style={styles.foodName}>{analysis.foodName}</Text>
-
           <Text style={styles.confidence}>
             {Math.round(analysis.confidence * 100)}% confidence
           </Text>
         </View>
 
         <View style={styles.nutritionCard}>
-          <NutritionValue
-            label="Calories"
-            value={`${Math.round(analysis.calories)} kcal`}
-          />
-
+          <NutritionValue label="Calories" value={`${Math.round(analysis.calories)} kcal`} />
           <NutritionValue label="Protein" value={`${analysis.protein} g`} />
-
           <NutritionValue label="Carbs" value={`${analysis.carbs} g`} />
-
           <NutritionValue label="Fat" value={`${analysis.fat} g`} />
-
           <NutritionValue label="Fiber" value={`${analysis.fiber} g`} />
         </View>
 
         <View style={styles.servingRow}>
-          <Ionicons
-            name="restaurant-outline"
-            size={18}
-            color={Colors.light.textSecondary}
-          />
-
+          <Ionicons name="restaurant-outline" size={18} color={Colors.light.textSecondary} />
           <Text style={styles.servingText}>
             Estimated serving: {analysis.servingEstimate} {analysis.servingUnit}
           </Text>
@@ -142,8 +139,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         {!!analysis.notes && <Text style={styles.notes}>{analysis.notes}</Text>}
 
         <Text style={styles.estimateNotice}>
-          These nutrition values are estimates. Review them before adding them
-          to your diary.
+          These nutrition values are estimates. Review them before adding them to your diary.
         </Text>
 
         <View style={styles.actionsRow}>
@@ -154,7 +150,6 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
             variant="outline"
             style={styles.retakeButton}
           />
-
           <PrimaryButton
             title="Use This Result"
             icon="checkmark"
@@ -169,12 +164,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.imageCard}>
-        <Image
-          source={{ uri: photoUri }}
-          style={styles.image}
-          resizeMode="cover"
-        />
-
+        <Image source={{ uri: previewSource }} style={styles.image} resizeMode="cover" />
         <View style={styles.badge}>
           <Ionicons name="camera" size={14} color={Colors.light.textInverse} />
           <Text style={styles.badgeText}>Food Photo</Text>
@@ -183,19 +173,13 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
 
       <View style={styles.infoSection}>
         <Text style={styles.title}>Food photo captured</Text>
-
         <Text style={styles.subtitle}>
           Let AI identify the food and estimate its nutrition for you.
         </Text>
       </View>
 
       <View style={styles.actionsColumn}>
-        <PrimaryButton
-          title="Analyze Food"
-          icon="sparkles"
-          onPress={handleAnalyze}
-        />
-
+        <PrimaryButton title="Analyze Food" icon="sparkles" onPress={handleAnalyze} />
         <SecondaryButton
           title="Retake"
           icon="refresh-outline"
@@ -226,13 +210,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: Colors.light.background,
   },
-
   resultContainer: {
     flex: 1,
     padding: Spacing.xl,
     backgroundColor: Colors.light.background,
   },
-
   loadingContainer: {
     flex: 1,
     alignItems: "center",
@@ -240,7 +222,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     backgroundColor: Colors.light.background,
   },
-
   loadingIcon: {
     width: 72,
     height: 72,
@@ -249,18 +230,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   spinner: {
     marginVertical: Spacing.lg,
   },
-
   loadingTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.bold,
     color: Colors.light.textPrimary,
     marginBottom: Spacing.xs,
   },
-
   loadingSubtitle: {
     fontSize: Typography.sizes.sm,
     color: Colors.light.textSecondary,
@@ -268,12 +246,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     maxWidth: 300,
   },
-
   resultHeader: {
     alignItems: "flex-start",
     marginBottom: Spacing.md,
   },
-
   aiBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -283,13 +259,11 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     gap: 6,
   },
-
   aiBadgeText: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.bold,
     color: Colors.light.primaryDark,
   },
-
   imageCard: {
     width: "100%",
     height: 380,
@@ -301,7 +275,6 @@ const styles = StyleSheet.create({
     position: "relative",
     ...Shadows.card,
   },
-
   imageCardSmall: {
     width: "100%",
     height: 180,
@@ -310,12 +283,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.surfaceSecondary,
     marginBottom: Spacing.md,
   },
-
   image: {
     width: "100%",
     height: "100%",
   },
-
   badge: {
     position: "absolute",
     top: Spacing.md,
@@ -328,25 +299,21 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     gap: 6,
   },
-
   badgeText: {
     color: Colors.light.textInverse,
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semibold,
   },
-
   infoSection: {
     alignItems: "center",
     paddingVertical: Spacing.lg,
   },
-
   title: {
     fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.bold,
     color: Colors.light.textPrimary,
     marginBottom: Spacing.xs,
   },
-
   subtitle: {
     fontSize: Typography.sizes.sm,
     color: Colors.light.textSecondary,
@@ -354,23 +321,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     maxWidth: 320,
   },
-
   foodHeader: {
     marginBottom: Spacing.md,
   },
-
   foodName: {
     fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.bold,
     color: Colors.light.textPrimary,
   },
-
   confidence: {
     fontSize: Typography.sizes.sm,
     color: Colors.light.textSecondary,
     marginTop: 4,
   },
-
   nutritionCard: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -381,44 +344,37 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     ...Shadows.card,
   },
-
   nutritionItem: {
     width: "33.33%",
     alignItems: "center",
     paddingVertical: Spacing.sm,
   },
-
   nutritionValue: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: Colors.light.textPrimary,
   },
-
   nutritionLabel: {
     fontSize: Typography.sizes.xs,
     color: Colors.light.textSecondary,
     marginTop: 2,
   },
-
   servingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
     marginTop: Spacing.md,
   },
-
   servingText: {
     fontSize: Typography.sizes.sm,
     color: Colors.light.textSecondary,
   },
-
   notes: {
     fontSize: Typography.sizes.xs,
     color: Colors.light.textSecondary,
     lineHeight: 18,
     marginTop: Spacing.sm,
   },
-
   estimateNotice: {
     fontSize: Typography.sizes.xs,
     color: Colors.light.textSecondary,
@@ -426,21 +382,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: Spacing.md,
   },
-
   actionsColumn: {
     gap: Spacing.md,
   },
-
   actionsRow: {
     flexDirection: "row",
     gap: Spacing.md,
     marginTop: "auto",
   },
-
   retakeButton: {
     flex: 1,
   },
-
   continueButton: {
     flex: 1.5,
   },
