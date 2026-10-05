@@ -3,11 +3,11 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import {
   Colors,
   Radii,
@@ -18,6 +18,7 @@ import {
 import {
   analyzeFoodImage,
   getCapturedImage,
+  loadCapturedImage,
   FoodAnalysis,
 } from "../services/foodAnalysis";
 import { PrimaryButton } from "./PrimaryButton";
