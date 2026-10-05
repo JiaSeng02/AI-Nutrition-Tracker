@@ -6,7 +6,7 @@ export interface CapturedImageData {
   mimeType: string;
 }
 
-const capturedImages = new Map<string, CapturedImageData>();
+const capturedImages = new Map<string, CapturedImageData>();\n\nexport async function loadCapturedImage(uri: string, mimeType = "image/jpeg"): Promise<CapturedImageData> {\n  const cached = getCapturedImage(uri);\n  if (cached?.base64) return cached;\n  if (!uri) throw new Error("No image was selected. Please choose a photo again.");\n\n  try {\n    const { File } = await import("expo-file-system");\n    const file = new File(uri);\n    const base64 = await file.base64();\n    if (!base64) throw new Error("The selected image could not be read.");\n    const data = { base64, mimeType };\n    storeCapturedImage(uri, base64, mimeType);\n    return data;\n  } catch (error) {\n    console.error("Failed to read captured image:", error);\n    throw new Error("The selected image could not be read. Please choose the photo again.");\n  }\n}
 
 export function storeCapturedImage(
   uri: string,
