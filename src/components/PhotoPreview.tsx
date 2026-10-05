@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,15 +34,52 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   onRetake,
   onUseResult,
 }) => {
-  const [imageData, setImageData] = useState(getCapturedImage(photoUri));\n  const [isLoadingImage, setIsLoadingImage] = useState(!getCapturedImage(photoUri));\n  const [imageError, setImageError] = useState<string | null>(null);\n  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageData, setImageData] = useState(getCapturedImage(photoUri));
+  const [isLoadingImage, setIsLoadingImage] = useState(!getCapturedImage(photoUri));
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
 
-  const imageData = getCapturedImage(photoUri);
+  useEffect(() => {
+    let active = true;
 
-  const previewSource = useMemo(() => {
-    if (!imageData?.base64) return photoUri;
-    return `data:${imageData.mimeType};base64,${imageData.base64}`;
-  }, [imageData, photoUri]);
+    const loadImage = async () => {
+      try {
+        setIsLoadingImage(true);
+        setImageError(null);
+        const data = await loadCapturedImage(photoUri);
+        if (active) {
+          setImageData(data);
+        }
+      } catch (error) {
+        if (active) {
+          setImageError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load the selected photo.",
+          );
+        }
+      } finally {
+        if (active) {
+          setIsLoadingImage(false);
+        }
+      }
+    };
+
+    if (!imageData?.base64) {
+      void loadImage();
+    } else {
+      setIsLoadingImage(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [photoUri]);
+
+  const previewSource = imageData?.base64
+    ? `data:${imageData.mimeType};base64,${imageData.base64}`
+    : photoUri;
 
   const handleAnalyze = async () => {
     if (isAnalyzing) return;
@@ -50,17 +87,13 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
     try {
       setIsAnalyzing(true);
 
-      if (!imageData?.base64) {
-        throw new Error(
-          "The selected image is no longer available. Please retake the photo.",
-        );
-      }
+      const data = imageData?.base64
+        ? imageData
+        : await loadCapturedImage(photoUri);
 
-      const result = await analyzeFoodImage(
-        imageData.base64,
-        imageData.mimeType,
-      );
+      setImageData(data);
 
+      const result = await analyzeFoodImage(data.base64, data.mimeType);
       setAnalysis(result.analysis);
     } catch (error) {
       const message =
@@ -75,7 +108,9 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   };
 
   const handleUseResult = () => {
-    if (analysis) onUseResult(analysis);
+    if (analysis) {
+      onUseResult(analysis);
+    }
   };
 
   if (isAnalyzing) {
@@ -111,7 +146,11 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.imageCardSmall}>
-          <Image source={previewSource} style={styles.image} contentFit="cover" />
+          <Image
+            source={previewSource}
+            style={styles.image}
+            contentFit="cover"
+          />
         </View>
 
         <View style={styles.foodHeader}>
@@ -122,7 +161,10 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.nutritionCard}>
-          <NutritionValue label="Calories" value={`${Math.round(analysis.calories)} kcal`} />
+          <NutritionValue
+            label="Calories"
+            value={`${Math.round(analysis.calories)} kcal`}
+          />
           <NutritionValue label="Protein" value={`${analysis.protein} g`} />
           <NutritionValue label="Carbs" value={`${analysis.carbs} g`} />
           <NutritionValue label="Fat" value={`${analysis.fat} g`} />
@@ -130,7 +172,11 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.servingRow}>
-          <Ionicons name="restaurant-outline" size={18} color={Colors.light.textSecondary} />
+          <Ionicons
+            name="restaurant-outline"
+            size={18}
+            color={Colors.light.textSecondary}
+          />
           <Text style={styles.servingText}>
             Estimated serving: {analysis.servingEstimate} {analysis.servingUnit}
           </Text>
@@ -164,9 +210,37 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.imageCard}>
-        <Image source={{ uri: previewSource }} style={styles.image} resizeMode="cover" />
+        <Image
+          source={previewSource}
+          style={styles.image}
+          contentFit="contain"
+          transition={200}
+        />
+
+        {isLoadingImage && (
+          <View style={styles.imageLoadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.light.primary} />
+            <Text style={styles.imageLoadingText}>Loading photo...</Text>
+          </View>
+        )}
+
+        {imageError && (
+          <View style={styles.imageErrorOverlay}>
+            <Ionicons
+              name="image-outline"
+              size={34}
+              color={Colors.light.textSecondary}
+            />
+            <Text style={styles.imageErrorText}>{imageError}</Text>
+          </View>
+        )}
+
         <View style={styles.badge}>
-          <Ionicons name="camera" size={14} color={Colors.light.textInverse} />
+          <Ionicons
+            name="camera"
+            size={14}
+            color={Colors.light.textInverse}
+          />
           <Text style={styles.badgeText}>Food Photo</Text>
         </View>
       </View>
@@ -179,7 +253,12 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
       </View>
 
       <View style={styles.actionsColumn}>
-        <PrimaryButton title="Analyze Food" icon="sparkles" onPress={handleAnalyze} />
+        <PrimaryButton
+          title="Analyze Food"
+          icon="sparkles"
+          onPress={handleAnalyze}
+          disabled={isLoadingImage || !!imageError}
+        />
         <SecondaryButton
           title="Retake"
           icon="refresh-outline"
