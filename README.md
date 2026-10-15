@@ -1,196 +1,170 @@
-# AI Nutrition Tracker — Mobile App (MVP)
+# AI Nutrition Tracker
 
-A personal Android nutrition and food-tracking mobile application built with **React Native**, **Expo (SDK 57)**, **TypeScript**, **Expo Router**, and **SQLite**.
+AI Nutrition Tracker is a mobile-first food diary built with React Native, Expo SDK 57, TypeScript, and Expo Router. It helps users record meals, review daily nutrition, set nutrition targets, track basic health measurements, and estimate nutrition from a meal photo.
 
-All user records and food data stay 100% locally on the device without requiring an account, server, or internet connection.
+The app does not require an account. Food entries, health information, targets, and settings are stored on the device. Photo-based food analysis sends the selected image to the app's configured analysis API and therefore requires an internet connection; manual food logging works offline.
 
----
+## Features
 
-## 🚀 Features
+### Home dashboard
 
-- **Home Dashboard**:
-  - Personalized time-of-day greeting ("Good morning, Alex")
-  - Daily calorie progress card (current / target kcal with animated progress bar)
-  - Macronutrient breakdown cards (Protein, Carbohydrates, Fat)
-  - Grouped meal overview (Breakfast, Lunch, Dinner, Snack)
-  - Empty state with quick "Add Food" call-to-action
-  - Floating "Scan Food" action button
+- Greets the user by their saved name and shows the current day's nutrition.
+- Compares calories and macronutrients with the user's daily targets.
+- Summarizes entries by breakfast, lunch, dinner, and snack.
+- Provides shortcuts to add food and scan a meal.
 
-- **Food Diary**:
-  - Interactive date selector with month navigation (`< September 2026 >`) and day-by-day strip
-  - Meals organized into Breakfast, Lunch, Dinner, and Snack groups
-  - Per-item calorie and macro badges
-  - Daily total summary card at bottom (total calories & macro grams)
-  - Tap any food entry to view details, edit, or delete
+### Food diary
 
-- **Add & Edit Food**:
-  - Clean manual entry form for food name, meal category, calories, and optional macronutrients (P/C/F)
-  - Optional notes and photo attachment (from Camera or Photo Library)
-  - Form validation and instant local persistence via SQLite
+- Browse entries by date with a calendar/date selector.
+- Review meals grouped by meal type, including calories and macro summaries.
+- Open an entry to view its photo, serving details, nutrition, notes, and timestamp.
+- Edit or delete food entries.
 
-- **Scan Food (AI-Ready)**:
-  - Live full-screen camera preview using `expo-camera` (`CameraView`)
-  - Flash toggle, camera flip (front/back), and viewfinder framing guides
-  - Alternative photo selection from the device's gallery via `expo-image-picker`
-  - Camera permission handling with graceful fallback UI
-  - "AI food recognition will be available here" architectural placeholder
+### Add and edit food
 
-- **Photo Preview**:
-  - High-resolution review of captured food photos
-  - "Retake" to shoot again or "Add Details" to attach directly to a new food record
+- Enter a food name, meal type, calories, protein, carbohydrates, fat, fiber, serving details, and notes.
+- Attach an image from the photo library or camera.
+- Validate numeric nutrition values before saving.
+- Save food records locally.
 
-- **Food Details**:
-  - Full-screen view of meal record with photo hero, meal badge, calories, macros, timestamp, and notes
-  - Edit and Delete actions with confirmation protection
+### Scan a meal
 
-- **Profile & Settings**:
-  - Editable user profile name
-  - Daily nutrition targets editor (Calorie goal, Protein, Carbs, Fat)
-  - Metric (g) / Imperial (oz) unit preference
-  - **Data Management**:
-    - **Export Data**: Generates and shares a complete JSON backup of all SQLite records
-    - **Clear All Data**: Reset database with confirmation modal
+- Take a photo with the device camera or select one from the photo library.
+- Review the photo and retake it if needed.
+- Request an AI-generated food name, serving estimate, nutrition estimate, confidence, and notes.
+- Review the estimate in the food form before adding it to the diary.
 
----
+AI values are estimates. Users can review and edit the values before saving. The analysis client currently calls `https://ai-nutrition-tracker-api-phi.vercel.app/api/analyze-food`.
 
-## 📁 Project Architecture
+### Food library
 
-```
+- Search the food catalog and filter by category.
+- Add a food from the library to a diary entry.
+- Manage custom food-library records.
+
+### Health and targets
+
+- Save age, height, weight, activity level, and an energy-estimation sex parameter.
+- View BMI and a recent weight/height measurement history.
+- View recent daily nutrition trends.
+- Calculate a suggested daily energy target from the saved profile and activity level.
+- Keep default, suggested, and custom nutrition targets distinct; review or apply a suggested target from the profile/settings screen.
+- Choose metric or imperial display units.
+
+Health calculations and nutrition targets are informational features, not medical advice.
+
+### Profile and data management
+
+- Set the display name and unit preference.
+- Review and edit daily calorie and macronutrient targets.
+- Export locally stored app records as JSON using the device share sheet.
+- Clear food records, health information, and settings after confirmation.
+
+## Technology
+
+- **Expo SDK 57** and **React Native 0.86**
+- **TypeScript 6**
+- **Expo Router** for file-based navigation
+- **expo-sqlite** for the native on-device database
+- Browser storage for the web database implementation
+- **expo-camera** and **expo-image-picker** for photo capture and selection
+- **expo-file-system** for persistent photo storage
+- **React Native Reanimated** and Expo UI packages for native interface support
+
+## Project structure
+
+```text
 src/
-├── app/                        # Expo Router routes
-│   ├── (tabs)/
-│   │   ├── _layout.tsx         # Bottom tab navigator (Home, Diary, Scan, Profile)
-│   │   ├── index.tsx           # Screen 1 — Home Dashboard
-│   │   ├── diary.tsx           # Screen 2 — Food Diary
-│   │   ├── scan.tsx            # Screen 4 — Scan Food
-│   │   └── profile.tsx         # Screen 7 — Profile & Settings
-│   ├── food/
-│   │   ├── add.tsx             # Screen 3 — Add / Edit Food Form
-│   │   └── [id].tsx            # Screen 6 — Food Details
-│   ├── scan/
-│   │   └── preview.tsx         # Screen 5 — Photo Preview
-│   ├── profile/
-│   │   └── targets.tsx         # Daily Nutrition Targets Editor
-│   └── _layout.tsx             # Root layout & SQLite initialization
-├── components/                 # Modular, reusable UI components
-│   ├── CameraPreview.tsx
-│   ├── ConfirmationDialog.tsx
-│   ├── DateSelector.tsx
-│   ├── EmptyState.tsx
-│   ├── FoodForm.tsx
-│   ├── FoodItem.tsx
-│   ├── MealCard.tsx
-│   ├── NutritionCard.tsx
-│   ├── PhotoPreview.tsx
-│   ├── PrimaryButton.tsx
-│   ├── ProgressBar.tsx
-│   └── SecondaryButton.tsx
-├── constants/
-│   └── theme.ts                # Design tokens, color palette, typography, radii, shadows
-├── database/                   # SQLite database layer
-│   ├── database.ts             # SQLite connection & schema migrations
-│   ├── foodRepository.ts       # Food CRUD, date queries, and aggregations
-│   └── settingsRepository.ts   # Targets, settings, and backup/export
-├── types/
-│   ├── food.ts                 # FoodItem, DailyTargets, DailyNutritionSummary
-│   └── nutrition.ts            # Meal metadata & macro definitions
-└── utils/
-    ├── date.ts                 # Date formatting & calendar utilities
-    └── nutrition.ts            # Energy calculations & progress helpers
+├── app/                         # Expo Router screens and layouts
+│   ├── (tabs)/                   # Home, diary, health, scan, and profile tabs
+│   ├── food/                     # Add/edit form and food-entry details
+│   ├── food-library/             # Food catalog routes
+│   ├── profile/                  # Target editing routes
+│   └── scan/                     # Photo review and analysis route
+├── components/                   # Reusable forms, cards, charts, and photo UI
+├── constants/                    # Theme and design tokens
+├── database/                     # Native/web database and data repositories
+├── hooks/                        # Shared React hooks
+├── services/                     # Food analysis and image persistence
+├── types/                        # Food, nutrition, health, and target types
+└── utils/                        # Date, health, and nutrition calculations
 ```
 
----
+### Data layer
 
-## 💾 Local SQLite Database Schema
+The repository modules in `src/database/` keep SQL and data operations out of the screens:
 
-```sql
--- Food entries table
-CREATE TABLE IF NOT EXISTS foods (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  meal_type TEXT NOT NULL,
-  calories REAL NOT NULL,
-  protein REAL NOT NULL DEFAULT 0,
-  carbs REAL NOT NULL DEFAULT 0,
-  fat REAL NOT NULL DEFAULT 0,
-  photo_uri TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
+- `foodRepository.ts` handles diary entries and daily nutrition summaries.
+- `foodLibraryRepository.ts` handles built-in and custom catalog items.
+- `healthRepository.ts` handles the health profile, measurements, and nutrition trends.
+- `nutritionTargetRepository.ts` handles target sources and health-based suggestions.
+- `settingsRepository.ts` handles settings, JSON export, and clearing app data.
+- `database.native.ts` uses SQLite on native platforms; `database.web.ts` provides browser storage for web.
 
--- Daily nutrition goals
-CREATE TABLE IF NOT EXISTS daily_targets (
-  id INTEGER PRIMARY KEY,
-  calorie_target INTEGER NOT NULL DEFAULT 2000,
-  protein_target INTEGER NOT NULL DEFAULT 120,
-  carbs_target INTEGER NOT NULL DEFAULT 220,
-  fat_target INTEGER NOT NULL DEFAULT 65
-);
+The native database is named `nutrition_tracker.db`. Photos are written to the app's document directory under `food_photos/`; diary rows store the photo URI. In-memory captured-photo data is used as a display fallback during the current app session.
 
--- App user settings
-CREATE TABLE IF NOT EXISTS settings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  key TEXT UNIQUE NOT NULL,
-  value TEXT NOT NULL
-);
-```
+## Requirements
 
----
+- Node.js compatible with the installed Expo SDK and npm.
+- Android Studio and an Android emulator for emulator runs, or an Android device with Expo Go for development previews.
+- For iOS native development, a Mac with Xcode is required for local native builds. Expo Go can be used for supported development features.
+- A network connection for Expo tooling and AI photo analysis.
 
-## 💻 How to Run on PC
+Install dependencies from the repository root:
 
-You can run this project on your PC using any of the following options:
-
-### Option 1: Web Browser on PC (Quickest)
-Run directly in your PC browser (Chrome / Edge / Firefox) without setting up Android Studio:
 ```bash
-npx expo start --web
+npm install
 ```
-Or run `npx expo start` and press `w` in the terminal. The app will open at `http://localhost:8081`.
 
----
+## Run the app
 
-### Option 2: Android Emulator on PC
-If you have **Android Studio** and an Android Virtual Device (AVD) set up on your PC:
-1. Start your Android Emulator in Android Studio.
-2. In your terminal, run:
-```bash
-npx expo start --android
-```
-Or run `npx expo start` and press `a`. Expo will automatically install and launch the app inside your emulator.
+Start the Expo development server:
 
----
-
-### Option 3: Physical Android Phone with Expo Go
-1. Install **Expo Go** from the Google Play Store on your Android phone.
-2. Ensure your phone and PC are connected to the same Wi-Fi network.
-3. In your terminal, run:
 ```bash
 npx expo start
 ```
-4. Open the Expo Go app on your phone and scan the QR code shown in the terminal.
 
----
+Then select a target in the terminal or Expo Dev Tools:
 
-### Option 4: Build Standalone APK (Production / Direct Install)
-As specified in the MVP requirements, to generate an installable Android `.apk`:
+- Press `a` to open an Android emulator.
+- Press `w` to open the web app.
+- Scan the QR code with Expo Go on a physical device connected to the same network.
+
+The project uses native Expo modules for the camera, file system, and SQLite. Expo Go includes the project's Expo SDK modules, but native behavior should be verified on a device or emulator. For a custom native development build, configure an EAS development profile and build with:
+
 ```bash
-npx eas-cli@latest build --profile preview --platform android
+npx eas-cli@latest build --profile development --platform android
 ```
 
----
+The repository does not currently include an `eas.json`; add the EAS build profiles before using that command. EAS production or preview builds also require project configuration and credentials.
 
-## 🛠 Useful Development Commands
+## Useful commands
 
 ```bash
-# Typecheck TypeScript files
+# Start the project
+npx expo start
+
+# Run the web target
+npx expo start --web
+
+# Check TypeScript
 npx tsc --noEmit
 
-# Run ESLint linter
+# Run ESLint
 npx expo lint
 
-# Diagnose dependencies and configuration
+# Check the Expo project and dependency configuration
 npx expo-doctor
 ```
 
+## Data and privacy notes
+
+- Diary entries, profile details, targets, and preferences are stored locally on the device/browser.
+- Export creates a JSON backup that the user can share through the platform share sheet.
+- Clearing app data removes local food records, health information, and settings.
+- AI photo analysis sends the image bytes and MIME type to the configured API endpoint. Do not use the scan feature with images that should remain entirely on-device.
+- The app does not currently document an account system or cloud synchronization feature.
+
+## License
+
+See [LICENSE](LICENSE).
