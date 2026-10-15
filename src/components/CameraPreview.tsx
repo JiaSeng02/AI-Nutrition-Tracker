@@ -49,6 +49,8 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({ onCapture }) => {
       const asset = result.canceled ? null : result.assets[0];
 
       if (asset?.uri && asset.base64) {
+        // ImagePicker's base64 result is JPEG data, even when the source asset
+        // has a different original MIME type.
         storeCapturedImage(asset.uri, asset.base64, 'image/jpeg');
         onCapture(asset.uri);
       } else if (!result.canceled) {

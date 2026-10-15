@@ -1,7 +1,13 @@
 const API_URL =
   "https://ai-nutrition-tracker-api-phi.vercel.app/api/analyze-food";
 
-export { getCapturedImage, loadCapturedImage, storeCapturedImage } from "./capturedImageStore";
+export {
+  clearCapturedImage,
+  getCapturedImage,
+  loadCapturedImage,
+  storeCapturedImage,
+} from "./capturedImageStore";
+export type { CapturedImageData } from "./capturedImageStore";
 
 export interface FoodAnalysis {
   foodName: string;
@@ -28,8 +34,14 @@ export async function analyzeFoodImage(
   mimeType: string = "image/jpeg",
 ): Promise<AnalyzeFoodResult> {
   if (!base64Image) {
-    throw new Error("The selected image is no longer available. Please retake the photo.");
+    throw new Error(
+      "The selected image is no longer available. Please retake the photo.",
+    );
   }
+
+  const cleanBase64 = base64Image.includes(",")
+    ? base64Image.split(",")[1]
+    : base64Image;
 
   const response = await fetch(API_URL, {
     method: "POST",
@@ -37,7 +49,7 @@ export async function analyzeFoodImage(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      image: base64Image,
+      image: cleanBase64,
       mimeType,
     }),
   });
@@ -50,6 +62,8 @@ export async function analyzeFoodImage(
     const message =
       "message" in data && data.message
         ? data.message
+        : "error" in data && data.error
+        ? data.error
         : "Unable to analyze the food image.";
 
     throw new Error(message);

@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Image } from "expo-image";
 import {
   Colors,
   Radii,
@@ -20,6 +20,7 @@ import {
   FoodAnalysis,
 } from "../services/foodAnalysis";
 import {
+  CapturedImageData,
   getCapturedImage,
   loadCapturedImage,
 } from "../services/capturedImageStore";
@@ -29,7 +30,7 @@ import { SecondaryButton } from "./SecondaryButton";
 interface PhotoPreviewProps {
   photoUri: string;
   onRetake: () => void;
-  onUseResult: (analysis: FoodAnalysis) => void;
+  onUseResult: (analysis: FoodAnalysis, image: CapturedImageData) => void;
 }
 
 export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
@@ -37,8 +38,13 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   onRetake,
   onUseResult,
 }) => {
-  const [imageData, setImageData] = useState(getCapturedImage(photoUri));
-  const [isLoadingImage, setIsLoadingImage] = useState(!getCapturedImage(photoUri));
+  const resolvedPhotoUri = Array.isArray(photoUri) ? photoUri[0] : photoUri;
+
+  const [imageData, setImageData] = useState<CapturedImageData | null>(() =>
+    getCapturedImage(resolvedPhotoUri),
+  );
+  const [useBase64Fallback, setUseBase64Fallback] = useState(false);
+  const [isLoadingImage, setIsLoadingImage] = useState(true);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
@@ -46,43 +52,48 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   useEffect(() => {
     let active = true;
 
-    const loadImage = async () => {
-      try {
-        setIsLoadingImage(true);
-        setImageError(null);
-        const data = await loadCapturedImage(photoUri);
-        if (active) {
-          setImageData(data);
-        }
-      } catch (error) {
-        if (active) {
-          setImageError(
-            error instanceof Error
-              ? error.message
-              : "Unable to load the selected photo.",
-          );
-        }
-      } finally {
-        if (active) {
-          setIsLoadingImage(false);
-        }
-      }
-    };
-
     if (!imageData?.base64) {
-      void loadImage();
-    } else {
-      setIsLoadingImage(false);
+      loadCapturedImage(resolvedPhotoUri)
+        .then((data) => {
+          if (active) {
+            setImageData(data);
+          }
+        })
+        .catch((error) => {
+          if (active && !resolvedPhotoUri) {
+            setImageError(
+              error instanceof Error
+                ? error.message
+                : "Unable to load the selected photo.",
+            );
+          }
+        });
     }
 
     return () => {
       active = false;
     };
-  }, [photoUri]);
+  }, [resolvedPhotoUri, imageData?.base64]);
 
-  const previewSource = imageData?.base64
-    ? `data:${imageData.mimeType};base64,${imageData.base64}`
-    : photoUri;
+  // Primary: Try local file/content URI.
+  // Use captured bytes when available because picker cache URIs can expire before
+  // the preview screen renders (especially on Android).
+  const displaySource = useMemo(() => {
+    if (imageData?.base64) {
+      return {
+        uri: `data:${imageData.mimeType || "image/jpeg"};base64,${imageData.base64}`,
+      };
+    }
+    if (resolvedPhotoUri && !useBase64Fallback) {
+      return { uri: resolvedPhotoUri };
+    }
+    if (imageData?.base64) {
+      return {
+        uri: `data:${imageData.mimeType || "image/jpeg"};base64,${imageData.base64}`,
+      };
+    }
+    return null;
+  }, [resolvedPhotoUri, useBase64Fallback, imageData]);
 
   const handleAnalyze = async () => {
     if (isAnalyzing) return;
@@ -92,7 +103,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
 
       const data = imageData?.base64
         ? imageData
-        : await loadCapturedImage(photoUri);
+        : await loadCapturedImage(resolvedPhotoUri);
 
       setImageData(data);
 
@@ -111,8 +122,8 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   };
 
   const handleUseResult = () => {
-    if (analysis) {
-      onUseResult(analysis);
+    if (analysis && imageData?.base64) {
+      onUseResult(analysis, imageData);
     }
   };
 
@@ -149,11 +160,13 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
         </View>
 
         <View style={styles.imageCardSmall}>
-          <Image
-            source={previewSource}
-            style={styles.image}
-            contentFit="cover"
-          />
+          {displaySource ? (
+            <Image
+              source={displaySource}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : null}
         </View>
 
         <View style={styles.foodHeader}>
@@ -213,12 +226,29 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.imageCard}>
-        <Image
-          source={previewSource}
-          style={styles.image}
-          contentFit="contain"
-          transition={200}
-        />
+        {displaySource ? (
+          <Image
+            source={displaySource}
+            style={styles.image}
+            resizeMode="contain"
+            onLoadStart={() => setIsLoadingImage(true)}
+            onLoad={() => {
+              setIsLoadingImage(false);
+              setImageError(null);
+            }}
+            onLoadEnd={() => {
+              setIsLoadingImage(false);
+            }}
+            onError={() => {
+              if (!useBase64Fallback && imageData?.base64) {
+                setUseBase64Fallback(true);
+              } else {
+                setIsLoadingImage(false);
+                setImageError("Unable to display the selected photo.");
+              }
+            }}
+          />
+        ) : null}
 
         {isLoadingImage && (
           <View style={styles.imageLoadingOverlay}>
@@ -227,7 +257,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
           </View>
         )}
 
-        {imageError && (
+        {imageError && !isLoadingImage && (
           <View style={styles.imageErrorOverlay}>
             <Ionicons
               name="image-outline"
@@ -260,7 +290,7 @@ export const PhotoPreview: React.FC<PhotoPreviewProps> = ({
           title="Analyze Food"
           icon="sparkles"
           onPress={handleAnalyze}
-          disabled={isLoadingImage || !!imageError}
+          disabled={!displaySource && !imageData?.base64}
         />
         <SecondaryButton
           title="Retake"
@@ -358,10 +388,10 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   imageLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(248, 250, 252, 0.88)",
+    backgroundColor: "transparent",
     gap: Spacing.sm,
   },
   imageLoadingText: {
@@ -369,7 +399,7 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
   },
   imageErrorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     padding: Spacing.xl,

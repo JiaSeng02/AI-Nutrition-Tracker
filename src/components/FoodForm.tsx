@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -15,6 +15,12 @@ import {
 import { Colors, Radii, Spacing, Typography } from "../constants/theme";
 import { MealType, NewFoodInput } from "../types/food";
 import { MEAL_TYPES } from "../types/nutrition";
+import { getCapturedImage } from "../services/foodAnalysis";
+import {
+  isPersistentUri,
+  persistPhoto,
+  persistPhotoFromBase64,
+} from "../services/imageStorage";
 import { formatNutritionAmount } from "../utils/foodNutrition";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -22,6 +28,14 @@ interface FoodFormProps {
   initialValues?: Partial<NewFoodInput>;
   submitLabel?: string;
   onSubmit: (values: NewFoodInput) => Promise<void>;
+}
+
+function getPhotoDisplayUri(uri?: string | null): string | null {
+  if (!uri) return null;
+  const captured = getCapturedImage(uri);
+  return captured?.base64
+    ? `data:${captured.mimeType || "image/jpeg"};base64,${captured.base64}`
+    : uri;
 }
 
 export const FoodForm: React.FC<FoodFormProps> = ({
@@ -57,11 +71,28 @@ export const FoodForm: React.FC<FoodFormProps> = ({
   const [photoUri, setPhotoUri] = useState<string | null>(
     initialValues?.photo_uri || null,
   );
+  const [photoDisplayUri, setPhotoDisplayUri] = useState<string | null>(
+    () => getPhotoDisplayUri(initialValues?.photo_uri),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; calories?: string }>(
     {},
   );
   const hasServingSnapshot = initialValues?.food_library_id != null;
+
+  // Persist the initial photo (from scan flow) to a stable location on mount
+  useEffect(() => {
+    const raw = initialValues?.photo_uri;
+    if (!raw || isPersistentUri(raw)) return;
+    persistPhoto(raw).then((stable) => {
+      setPhotoUri(stable);
+      setPhotoDisplayUri(getPhotoDisplayUri(stable));
+    }).catch(() => {
+      // Keep showing the original image if persistence is unavailable.
+      setPhotoDisplayUri(getPhotoDisplayUri(raw));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePickImage = async () => {
     try {
@@ -80,10 +111,20 @@ export const FoodForm: React.FC<FoodFormProps> = ({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
-        setPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        const stable = asset.base64
+          ? await persistPhotoFromBase64(asset.base64, "image/jpeg")
+          : await persistPhoto(asset.uri);
+        setPhotoUri(stable);
+        setPhotoDisplayUri(
+          asset.base64
+            ? `data:image/jpeg;base64,${asset.base64}`
+            : getPhotoDisplayUri(stable),
+        );
       }
     } catch {
       Alert.alert("Error", "Could not open photo gallery.");
@@ -106,10 +147,20 @@ export const FoodForm: React.FC<FoodFormProps> = ({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
-        setPhotoUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        const stable = asset.base64
+          ? await persistPhotoFromBase64(asset.base64, "image/jpeg")
+          : await persistPhoto(asset.uri);
+        setPhotoUri(stable);
+        setPhotoDisplayUri(
+          asset.base64
+            ? `data:image/jpeg;base64,${asset.base64}`
+            : getPhotoDisplayUri(stable),
+        );
       }
     } catch {
       Alert.alert("Error", "Could not open camera.");
@@ -118,6 +169,7 @@ export const FoodForm: React.FC<FoodFormProps> = ({
 
   const handleRemovePhoto = () => {
     setPhotoUri(null);
+    setPhotoDisplayUri(null);
   };
 
   const handleSubmit = async () => {
@@ -337,9 +389,21 @@ export const FoodForm: React.FC<FoodFormProps> = ({
       {/* Photo Section */}
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>Photo (Optional)</Text>
-        {photoUri ? (
+        {photoDisplayUri ? (
           <View style={styles.photoPreviewCard}>
-            <Image source={{ uri: photoUri }} style={styles.photoImage} />
+            <Image
+              source={{ uri: photoDisplayUri }}
+              style={styles.photoImage}
+              onError={() => {
+                // Fallback: try base64 from in-memory store if file URI fails
+                const cached = getCapturedImage(photoUri);
+                if (cached?.base64) {
+                  setPhotoDisplayUri(
+                    `data:${cached.mimeType};base64,${cached.base64}`,
+                  );
+                }
+              }}
+            />
             <View style={styles.photoActions}>
               <TouchableOpacity
                 onPress={handlePickImage}

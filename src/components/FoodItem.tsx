@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FoodItem as FoodItemType } from '../types/food';
 import { Colors, Typography, Spacing, Radii } from '../constants/theme';
+import { getCapturedImage } from '../services/foodAnalysis';
 import { formatKcal } from '../utils/nutrition';
 
 interface FoodItemProps {
@@ -17,14 +18,27 @@ export const FoodItem: React.FC<FoodItemProps> = ({
   onPress,
   onDelete,
 }) => {
+  const [thumbUri, setThumbUri] = useState<string | null>(item.photo_uri ?? null);
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => onPress(item)}
       style={styles.container}>
       {/* Thumbnail or placeholder */}
-      {item.photo_uri ? (
-        <Image source={{ uri: item.photo_uri }} style={styles.thumbnail} />
+      {thumbUri ? (
+        <Image
+          source={{ uri: thumbUri }}
+          style={styles.thumbnail}
+          onError={() => {
+            const cached = getCapturedImage(item.photo_uri);
+            if (cached?.base64) {
+              setThumbUri(`data:${cached.mimeType};base64,${cached.base64}`);
+            } else {
+              // Give up and show placeholder
+              setThumbUri(null);
+            }
+          }}
+        />
       ) : (
         <View style={styles.placeholderThumbnail}>
           <Ionicons name="restaurant-outline" size={18} color={Colors.light.primary} />

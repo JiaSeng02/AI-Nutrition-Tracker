@@ -21,22 +21,33 @@ import {
 } from "../../constants/theme";
 import { getFoodSourceLabel } from "../../database/foodLibraryRepository";
 import { deleteFood, getFoodById } from "../../database/foodRepository";
+import { getCapturedImage } from "../../services/foodAnalysis";
 import { FoodItem } from "../../types/food";
 import { MEAL_TYPES } from "../../types/nutrition";
 import { formatDisplayDate, formatTime } from "../../utils/date";
 import { formatNutritionAmount } from "../../utils/foodNutrition";
+
+function getPhotoDisplayUri(uri: string | null): string | null {
+  if (!uri) return null;
+  const cached = getCapturedImage(uri);
+  return cached?.base64
+    ? `data:${cached.mimeType || "image/jpeg"};base64,${cached.base64}`
+    : uri;
+}
 
 export default function FoodDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [food, setFood] = useState<FoodItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [photoDisplayUri, setPhotoDisplayUri] = useState<string | null>(null);
 
   const loadItem = useCallback(async () => {
     if (!id) return;
     try {
       const item = await getFoodById(Number(id));
       setFood(item);
+      setPhotoDisplayUri(getPhotoDisplayUri(item?.photo_uri ?? null));
     } catch (e) {
       console.warn("Error loading food details:", e);
     } finally {
@@ -94,12 +105,22 @@ export default function FoodDetailsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Photo if available */}
-        {food.photo_uri ? (
+        {photoDisplayUri ? (
           <View style={styles.imageCard}>
             <Image
-              source={{ uri: food.photo_uri }}
+              source={{ uri: photoDisplayUri }}
               style={styles.image}
               resizeMode="cover"
+              onError={() => {
+                const cached = getCapturedImage(food.photo_uri);
+                if (cached?.base64) {
+                  setPhotoDisplayUri(
+                    `data:${cached.mimeType};base64,${cached.base64}`,
+                  );
+                } else {
+                  setPhotoDisplayUri(null);
+                }
+              }}
             />
           </View>
         ) : (

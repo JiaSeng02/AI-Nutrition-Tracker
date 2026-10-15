@@ -24,13 +24,32 @@ export default function AddFoodScreen() {
     date?: string;
     photoUri?: string;
     editId?: string;
+    foodName?: string;
+    calories?: string;
+    protein?: string;
+    carbs?: string;
+    fat?: string;
+    fiber?: string;
+    servingEstimate?: string;
+    servingUnit?: string;
+    notes?: string;
   }>();
   const navigation = useNavigation();
 
   const [loadingInitial, setLoadingInitial] = useState(!!params.editId);
   const [initialValues, setInitialValues] = useState<Partial<NewFoodInput>>({
+    name: params.foodName || "",
     meal_type: params.mealType || "breakfast",
+    calories: params.calories !== undefined ? parseFloat(params.calories) : undefined,
+    protein: params.protein !== undefined ? parseFloat(params.protein) : undefined,
+    carbs: params.carbs !== undefined ? parseFloat(params.carbs) : undefined,
+    fat: params.fat !== undefined ? parseFloat(params.fat) : undefined,
+    fiber: params.fiber !== undefined ? parseFloat(params.fiber) : null,
+    serving_size: params.servingEstimate !== undefined ? parseFloat(params.servingEstimate) : 1,
+    serving_unit: params.servingUnit || "serving",
+    notes: params.notes || "",
     photo_uri: params.photoUri || null,
+    source_type: "user_entered",
   });
 
   useLayoutEffect(() => {
