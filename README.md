@@ -168,3 +168,9 @@ npx expo-doctor
 ## License
 
 See [LICENSE](LICENSE).
+
+## 📚 Documentation
+
+View the complete system documentation, including the system architecture, technology stack, screen responsibilities, data flow, API specifications, and deployment configuration.
+
+📄 [**AI Nutrition Tracker — System Documentation (PDF)**](docs/AI_Nutrition_Tracker_System_Documentation.pdf)
